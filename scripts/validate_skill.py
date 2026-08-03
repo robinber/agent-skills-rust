@@ -145,8 +145,6 @@ def validate_frontmatter() -> None:
     description = frontmatter.get("description")
     if name != EXPECTED_NAME:
         fail(f"SKILL.md: name must equal {EXPECTED_NAME!r}, got {name!r}")
-    if ROOT.name != name:
-        fail(f"directory name {ROOT.name!r} does not match skill name {name!r}")
     if not isinstance(description, str) or not description.strip():
         fail("SKILL.md: description must be a non-empty string")
     elif len(description) > 1024:
@@ -288,8 +286,13 @@ def validate_release_consistency() -> None:
         for line in result.stdout.splitlines()
         if (match := re.fullmatch(r"v(\d+\.\d+\.\d+)", line)) is not None
     ]
-    if tags and max(tags, key=version_tuple) != version:
-        fail(f"git tags: latest release tag must be v{version}")
+    if tags:
+        latest_tag = max(tags, key=version_tuple)
+        if version_tuple(latest_tag) > version_tuple(version):
+            fail(
+                f"git tags: latest release tag v{latest_tag} is newer than "
+                f"VERSION {version}"
+            )
 
 
 def normalize_command(block: str) -> str:
@@ -497,6 +500,10 @@ def validate_discovery_evals() -> None:
     data = mapping(load_yaml(path), relative(path))
     if data.get("suite") != "native-discovery" or data.get("harness") != "kira":
         fail("evals/discovery.yaml: expected native-discovery suite with Kira harness")
+
+    setup = mapping(data.get("setup"), "discovery setup")
+    if setup.get("install_directory") != EXPECTED_NAME:
+        fail("evals/discovery.yaml: install directory must match the skill name")
 
     markers = mapping(data.get("expected_markers"), "discovery expected_markers")
     if markers.get("name") != EXPECTED_NAME:

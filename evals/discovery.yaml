@@ -2,6 +2,7 @@ schema_version: 1
 suite: native-discovery
 harness: kira
 setup:
+  install_directory: "rust-strict"
   canonical_copy: "Create one temporary canonical rust-strict copy outside the repository under test."
   codex_adapter: "Expose the canonical copy at .agents/skills/rust-strict."
   claude_adapter: "Expose the same canonical copy at .claude/skills/rust-strict."
