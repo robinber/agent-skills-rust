@@ -44,35 +44,33 @@ and the
 
 ## 3. Skill policy
 
-Hard rules:
+Technical rules (apply the approval decision from `SKILL.md` before editing):
 
-1. Do not introduce `unsafe` unless the task requires it and no safe API is
-   adequate. Treat new `unsafe` as needing explicit operator sign-off.
+1. Introduce `unsafe` only when the approved task requires it and no adequate
+   safe API exists.
 2. Keep `unsafe` blocks as small as possible. Push checks and setup into safe
    code around them.
 3. Every `unsafe` block must include a `// SAFETY:` comment that states the local
    proof, not a vague claim that "this is fine".
 4. Every public `unsafe fn` must document `# Safety` preconditions.
 5. Prefer a small safe API over exporting raw unsafe operations.
-6. Do not dilute repo-wide `unsafe_code = "deny"` casually. If the package must
-   use `unsafe`, relax the lint at the smallest module or item scope with a
-   justified reason, or adopt an explicit package policy documented in
-   `AGENTS.md`.
+6. Do not dilute repo-wide `unsafe_code = "deny"` through a local workaround.
+   Apply the core approval rule, then encode any authorized deviation at the
+   smallest scope and in the documented repository contract.
 7. Prefer mechanical enforcement: enable `clippy::undocumented_unsafe_blocks`
    and `clippy::multiple_unsafe_ops_per_block` when the package allows `unsafe`.
 8. When changing `unsafe`, add or update tests for the safe abstraction's
    guarantees. Prefer:
 
+<!-- command-fixture: miri-test -->
 ```bash
-# When the logic is Miri-compatible (pure memory / no unsupported syscalls):
-cargo +nightly miri test -p <package> -- <test-filter>
-
-# When Miri cannot run (device I/O, io_uring, many syscalls), compensate:
-# - focused safe-API tests and adversarial edge cases
-# - boundary assertions
-# - sanitizers when practical (`-Zsanitizer=address`, or `cargo careful` if available)
-# - careful review of drop/error paths
+cargo +nightly miri test -p <package> <target-selection> <feature-selection> <test-filter>
 ```
+
+When Miri cannot run (device I/O, `io_uring`, unsupported syscalls), compensate
+with focused safe-API and adversarial tests, boundary assertions, sanitizers or
+`cargo careful` when practical, and careful review of drop/error paths. Follow
+the unavailable-tool reporting contract in `references/workflow.md`.
 
 ### Good SAFETY comments
 

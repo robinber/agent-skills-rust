@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- Define deterministic policy precedence, exact approval semantics, stop
+  conditions, and mandatory `COMPLETE` / `COMPLETE WITH GAPS` / `BLOCKED`
+  reporting.
+- Make the error reference the sole panic-contract source and add task-based
+  reference routing.
+- Reduce `SKILL.md` to the always-loaded core; add concurrency, semver,
+  target/feature-matrix, and unavailable-tool guidance.
+- Replace divergent multi-tool clones with one canonical checkout, a
+  version-scoped Claude symlink, and Grok reuse of Claude skills.
+- Add static validation, command-shape fixtures, behavioral evaluation cases,
+  a Kira native-discovery matrix for Codex/Claude/Grok, and pull-request CI.
+
 ## 1.0.2 — 2026-08-03
 
 Fixes from independent Claude Code review of the public v1.0.1 tree.

@@ -16,8 +16,8 @@
 
 - Library code should usually return a concrete error enum or another composable
   error type (`thiserror` is the default preference), not erase errors too early.
-- In non-test production code, do not use `unwrap`, `expect`, `panic!`,
-  `todo!`, or `unimplemented!`. Use typed errors and `?`.
+- Default: do not introduce `panic!`, `unwrap`, `expect`, `todo!`, or
+  `unimplemented!` in non-test production code. Use typed errors and `?`.
 - Prefer `build` / `try_new` / `TryFrom` for fallible construction when that
   clarifies the API; a fallible `new() -> Result<…>` is fine when it matches the
   crate convention (std sometimes uses fallible `new`).
@@ -36,14 +36,18 @@
 ### Panic contract
 
 - Prefer making illegal states unrepresentable over runtime panics.
-- When repository policy bans panics in non-test code (for example in
-  `AGENTS.md`), that ban wins over general Rust culture. Do not introduce
-  invariant panics without an explicit operator-approved exception.
-- If an approved exception allows an internal invariant panic, document
-  `# Panics`, keep the surface small, and treat it as a bug path—not control
-  flow.
-- Do not use panics for user input, I/O failure, parse failure, or policy
-  rejection.
+- Allow a narrowly scoped internal invariant panic only when **all** of these
+  conditions hold:
+  1. repository policy permits it;
+  2. the operator explicitly approves this exact exception and scope under the
+     approval rules in `SKILL.md`;
+  3. the condition is a programmer bug, never user input, parsing, I/O,
+     configuration, resource exhaustion, or policy rejection;
+  4. a public panic surface is documented with `# Panics`;
+  5. the exception is mechanically scoped and does not weaken the
+     repository-wide lint floor.
+- If any condition is false, return a typed error or redesign the state instead.
+- Keep an approved invariant panic as a bug path, never control flow.
 - Prefer enabling `clippy::panic` (and related unwrap/expect lints) so the ban
   is mechanical, not review-only.
 - Test-only panics/unwraps require Clippy test knobs or scoped expects; see
@@ -51,8 +55,8 @@
 
 ## 3. Allowed exceptions
 
-- Tests may use `panic!` or `expect` when failure should stop immediately **and**
-  package lint knobs allow it.
+- Tests may use `panic!`, `unwrap`, or `expect` when failure should stop
+  immediately **and** repository policy and package lint knobs allow it.
 - A CLI or TUI `main` may use `anyhow` or `Box<dyn Error>` to collapse diverse
   failures into one exit path.
 - A fallible `new() -> Result<…>` is acceptable when it matches crate or std

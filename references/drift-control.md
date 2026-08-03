@@ -110,9 +110,9 @@ If `AGENTS.md` names project-critical surfaces, treat those as the primary list.
 If tests are impractical in the current turn, state the remaining gap and run
 the narrowest command that still exercises the touched path.
 
-## 7. Final report checklist
+## 7. Completion-report additions
 
-For non-trivial Rust changes, report:
+Under the mandatory completion schema in `SKILL.md`, also report when relevant:
 
 - files touched that were over 800 or 1,000 LOC (or the project override);
 - whether any active audit/debt finding was affected;

@@ -1,114 +1,162 @@
-# workflow
+# Workflow and verification
 
-## 1. Source-backed guidance
+Use this reference for verification scope, manifest edits, CI alignment, MSRV,
+tool availability, and target or feature matrices. Apply the precedence and
+completion states defined in `SKILL.md`.
 
-- Start from the policy files that exist: `Cargo.toml` (package and/or workspace
-  tables), `rust-toolchain.toml`, `.rustfmt.toml` or `rustfmt.toml`,
-  `clippy.toml`, `.cargo/config.toml`, and `deny.toml`. CI workflow files join
-  the effective contract once they exist.
-- Treat package or inherited `[workspace.package]` `rust-version` as the MSRV
-  declaration. Treat `rust-toolchain.toml` as the default *execution* toolchain.
-  They are not the same thing; both matter.
-- Do not infer nightly by default. Use `+nightly` only for commands that
-  explicitly require it (for example unstable rustfmt options already required by
-  the repository).
-- Run `rustfmt` before broad verification so the diff reflects behavior, not
-  formatting drift.
-- Check `.github/workflows/*` before widening scope when CI exists. Until then,
-  use `AGENTS.md` and local policy files as the canonical gates and do not claim
-  CI coverage.
-- Verify from the smallest relevant scope first: one package, one test target,
-  one feature set. Escalate only when the change affects shared code, feature
-  gates, build scripts, or cross-package behavior.
+## 1. Derive the execution row
 
-## 2. Local verification baseline
+Read the repository sources that exist before choosing commands:
 
-Default verification is impact-scoped. Derive the full static baseline from the
-repository; do not hardcode nightly or `--all-features`.
+- `Cargo.toml` and inherited workspace package/lint tables;
+- `rust-toolchain.toml` for the default execution toolchain;
+- package or inherited `rust-version` for declared MSRV;
+- `.rustfmt.toml` or `rustfmt.toml`, `clippy.toml`, and
+  `.cargo/config.toml`;
+- `deny.toml`, CI workflows, and documented `justfile` or `Makefile` gates.
 
+Record package, target, feature row, platform, toolchain, and MSRV separately.
+Do not infer nightly, workspace-wide scope, or `--all-features`. Cargo aliases
+and task runners are conveniences; report the underlying command when they
+matter to the evidence.
+
+If repository sources at this level disagree, stop the affected verification
+or policy change. For example, CI and `AGENTS.md` disagreement is a policy
+conflict, not permission to select the cheaper gate.
+
+## 2. Canonical command shapes
+
+Adapt placeholders from repository evidence. Put Cargo package, target, and
+feature selection before `--`; put rustc or Clippy lint flags after `--`.
+
+<!-- command-fixture: fmt-check -->
 ```bash
-# fmt — repo toolchain; +nightly only if required
 cargo fmt --all --check
+```
 
-# clippy — package/target/feature selection BEFORE `--`; lint flags AFTER
-# Example with explicit selections; omit any selection you do not need:
+<!-- command-fixture: clippy-scoped -->
+```bash
 cargo clippy -p <package> <target-selection> <feature-selection> -- -D warnings
+```
 
-# docs
+<!-- command-fixture: rustdoc-scoped -->
+```bash
 RUSTDOCFLAGS="-D warnings" cargo doc -p <package> --no-deps <feature-selection>
+```
 
-# supply chain — only if deny.toml exists; run ALL configured checks
+<!-- command-fixture: cargo-deny -->
+```bash
 cargo deny check
 ```
 
-`<target-selection>` examples: `--all-targets`, `--lib`, or omit.  
-`<feature-selection>` examples: `--all-features`, `--features foo`, or omit.
+<!-- command-fixture: cargo-metadata -->
+```bash
+cargo metadata --no-deps --format-version 1
+```
 
-In a workspace, add `--workspace` (or explicit `-p` selection) when the change
-spans members or shared policy. During iteration, package-scoped commands are
-preferred.
+<!-- command-fixture: msrv-check -->
+```bash
+cargo +<msrv> check -p <package> <target-selection> <feature-selection>
+```
 
-**Feature rows:** default package features unless CI, `AGENTS.md`, or the change
-requires another row (`--all-features`, `--no-default-features`, or explicit
-`--features`). Mutually exclusive or platform-specific features must not be
-forced under a single `--all-features` invocation.
+<!-- command-fixture: target-check -->
+```bash
+cargo check -p <package> --target <target-triple> <feature-selection>
+```
 
-Cargo aliases in `.cargo/config.toml`, when present, provide shorthand such as
-`lint`, `doc-all`, `deny-all`, and `test-all`. Convenience targets in `justfile`
-/ `Makefile` may wrap the same gates; always report the underlying cargo
-commands when claiming verification.
+Add `--locked` only when a committed lockfile exists and repository policy
+expects locked resolution. A successful check on a newer pinned toolchain is
+not proof of declared MSRV compatibility.
 
-Tests remain impact-scoped for lint, documentation, and policy-only changes. For
-a behavior change claimed complete, run tests that exercise the touched
-behavior. When runnable rustdoc examples change, also run scoped
-`cargo test --doc`.
+## 3. Verification layers
 
-When reporting verification, copy the exact command shape and scope: package,
-workspace/member selection, target (`--lib`, `--bin`, tests), feature set,
-toolchain override if any, and whether doctests or dependency-policy checks were
-included.
+Select every layer touched by the claim:
 
-### MSRV
+| Surface | Minimum evidence |
+|---|---|
+| Formatting only | Repository rustfmt check |
+| Private logic or bug fix | Focused regression test and scoped Clippy |
+| Public API | Scoped Clippy, behavior tests, rustdoc, changed doctests |
+| Metadata-only manifest edit | `cargo metadata`; formatting only if formatted sources changed |
+| Lints, features, toolchain, profiles | Affected static baseline and relevant feature/toolchain row |
+| Dependencies or `deny.toml` | Affected build/test row and every configured `cargo deny` check |
+| Declared MSRV-sensitive change | Repository MSRV job or explicit MSRV check |
+| Published-library compatibility | API review plus `cargo semver-checks` when configured or practical |
+| Unsafe or FFI | Safe-API tests plus the strongest applicable dynamic/fallback checks |
+| Cross-package/shared behavior | Affected package and direct dependents; workspace when policy or reach requires it |
+| Release verdict | Every repository-required release row |
 
-When `rust-version` is declared and the change is MSRV-sensitive (new APIs,
-edition features, dependency bumps), verify with the repository's MSRV path —
-for example `cargo +1.xx check -p <package>` or the documented CI MSRV job. A
-green check on a newer pinned toolchain alone is not MSRV proof.
+Tests remain impact-scoped for formatting, prose, lint-only, and pure metadata
+changes. A behavior claim requires a test that exercises the touched behavior.
+See `references/testing.md` for command ordering and test selection.
 
-## 3. Manifest edit classes
+## 4. Manifest edit classes
 
-Not every `Cargo.toml` edit is the same. Classify before choosing gates:
+Classify every manifest change before selecting gates:
 
 | Edit class | Examples | Minimum verification |
 |---|---|---|
-| Metadata-only | description, readme, authors, keywords | `cargo metadata --no-deps --format-version 1` (add `--locked` only if a committed lockfile exists and policy requires it) + `cargo fmt --all --check` if any Rust/fmt files also changed |
-| Lint / toolchain / feature policy | `[lints]`, features, `rust-version`, profile policy | full static baseline for the affected package/workspace selection |
-| Dependencies / supply chain | new deps, version bumps, `deny.toml` | full static baseline + `cargo deny check` when configured |
-| Code-adjacent package wiring | new targets, `[[bin]]`, path deps | clippy + tests for the affected targets |
+| Metadata-only | description, readme, authors, keywords | `cargo metadata` |
+| Lint/toolchain/feature policy | `[lints]`, features, `rust-version`, profiles | affected static baseline and relevant rows |
+| Dependency/supply chain | dependency source/version/features, lockfile, `deny.toml` | affected build/test row plus configured deny checks |
+| Target wiring | `[[bin]]`, examples, proc-macros, build scripts, path dependencies | checks/tests for each affected host or target boundary |
 
-When in doubt between metadata-only and policy, use the stricter class.
+When uncertain whether an edit is metadata-only or policy-changing, inspect its
+effect through Cargo metadata and choose the policy-changing class if ambiguity
+remains.
 
-## 4. Skill policy
+## 5. Feature and platform widening
 
-- Always do an anchor pass over policy files and existing CI before editing.
-- Prefer the narrowest command that can fail for the change you made.
-- Escalate in this order when needed: package scope, `--all-targets`, the
-  correct feature row, then workspace-wide selection.
-- Treat the full static baseline as mandatory for lint, feature, toolchain,
-  dependency-policy, and shared-package changes — not for pure metadata renames.
-- Keep MSRV, lint policy, deny policy, and CI expectations aligned; if one
-  changes, check the others.
+Run or explicitly leave uncovered the row that the change can affect:
 
-## 5. Allowed exceptions
+| Trigger | Required widening |
+|---|---|
+| `cfg(...)` or target-specific dependency | Relevant target triple and feature row |
+| `no_std` or `alloc` boundary | `--no-default-features` and the supported target/build mode |
+| Mutually exclusive features | One valid invocation per supported combination; never force `--all-features` |
+| Optional runtime/backend | Each changed backend row and shared default row |
+| Proc macro | Host compilation plus a consumer/expansion test |
+| Build script | Host execution, emitted config, environment inputs, and `rerun-if-*` behavior |
+| Platform FFI | Supported target build plus boundary tests or documented unavailable target |
+| Shared workspace policy | Every inheriting member or the canonical workspace gate |
 
-- If the change is pure formatting, `cargo fmt --check` is enough unless CI
-  policy says otherwise.
-- If the workspace is very large, first verify the affected package and direct
-  dependents, then widen only if the change crosses package boundaries.
-- For documentation-only edits, you may skip full test execution unless
-  doctests or public API examples changed.
-- If CI is the authoritative gate for a slow target, a local narrower check is
-  acceptable as long as you clearly note the remaining gap.
-- If no `deny.toml` exists, skip `cargo deny` and note the gap rather than
-  inventing policy.
-- If no lockfile is committed, do not pass `--locked`.
+Never present host/default-feature success as proof for an untested target,
+backend, or feature combination. Cross-compilation proves compilation, not
+runtime behavior on the target.
+
+## 6. Unavailable tools and gates
+
+Classify a missing or unusable command before selecting the final state:
+
+1. Record the exact attempted command and diagnostic.
+2. State whether the tool or row is optional guidance, relevant evidence, or a
+   repository-required gate.
+3. Run the best available fallback that covers part of the same risk.
+4. Name the safety, compatibility, platform, or policy surface still uncovered.
+5. Select the completion state from `SKILL.md`.
+
+| Situation | State rule |
+|---|---|
+| Optional tool unavailable, fallback covers the requested claim | May remain `COMPLETE`; report the optional omission when relevant |
+| Relevant check unavailable, work otherwise done, outcome does not require that proof | `COMPLETE WITH GAPS` |
+| Required gate unavailable for implementation handoff but existing CI is the authoritative pending runner | At best `COMPLETE WITH GAPS`; never claim the gate passed |
+| Required gate fails | `BLOCKED` until fixed or an exact scoped policy decision changes the contract |
+| Release/verification task requires an unavailable row | `BLOCKED` |
+
+This applies to Miri, sanitizers, `cargo deny`, `cargo semver-checks`, target
+toolchains, external services, and machine-specific harnesses. Absence of an
+unconfigured optional tool such as `deny.toml` is not itself a gap; falsely
+claiming its coverage is prohibited.
+
+## 7. Scope escalation
+
+Escalate only when evidence requires it:
+
+1. focused target or test;
+2. affected package and feature row;
+3. direct dependents or adjacent target rows;
+4. workspace or release matrix.
+
+Widen immediately when repository policy mandates a broader gate, a public
+contract crosses packages, shared build policy changes, or narrow checks cannot
+exercise the claimed behavior.

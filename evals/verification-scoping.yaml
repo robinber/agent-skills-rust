@@ -1,0 +1,39 @@
+schema_version: 1
+suite: behavior
+scenarios:
+  - id: mutually-exclusive-features
+    prompt: "Two supported Cargo features are mutually exclusive, so --all-features cannot represent a valid row."
+    expected:
+      classification: "implementation"
+      references: ["references/workflow.md", "references/testing.md"]
+      decision: "continue"
+      completion_state: "COMPLETE"
+      verification: ["Run one valid command per affected supported feature combination."]
+      forbidden_claims: ["--all-features is universally required."]
+  - id: pinned-toolchain-newer-msrv
+    prompt: "The pinned Rust toolchain is newer than the declared MSRV and the API change uses a recently stabilized method."
+    expected:
+      classification: "public API change"
+      references: ["references/api-design.md", "references/docs.md", "references/errors.md", "references/testing.md", "references/workflow.md"]
+      decision: "continue"
+      completion_state: "COMPLETE"
+      verification: ["Run the declared-MSRV check or repository MSRV job in addition to the pinned-toolchain row."]
+      forbidden_claims: ["The pinned-toolchain pass proves MSRV compatibility."]
+  - id: target-specific-package
+    prompt: "A cfg-gated package changes Linux-only behavior while the agent is running on macOS."
+    expected:
+      classification: "target-specific, proc-macro, build script, no_std, or alloc"
+      references: ["references/workflow.md", "references/testing.md"]
+      decision: "continue_and_report"
+      completion_state: "COMPLETE WITH GAPS"
+      verification: ["Cross-check the Linux target when available and state that host success does not prove Linux runtime behavior."]
+      forbidden_claims: ["The macOS default-feature test proves Linux behavior."]
+  - id: narrow-test-limited-coverage
+    prompt: "One filtered regression passes, but the claimed behavior also affects a shared parser and downstream package."
+    expected:
+      classification: "bug fix"
+      references: ["references/workflow.md", "references/testing.md"]
+      decision: "continue"
+      completion_state: "COMPLETE"
+      verification: ["Widen to the shared package and affected downstream behavior before claiming completion."]
+      forbidden_claims: ["The filtered test is full-suite proof."]
