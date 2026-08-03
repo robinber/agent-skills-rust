@@ -44,7 +44,27 @@ and the
 
 ## 3. Skill policy
 
-Technical rules (apply the approval decision from `SKILL.md` before editing):
+### Approval scope
+
+Introducing or widening `unsafe` requires explicit operator approval when any
+of these holds:
+
+- repository policy currently forbids `unsafe`;
+- the requested task does not already identify an unsafe/FFI/system boundary;
+- the implementation would expand the unsafe boundary beyond the named task;
+- an adequate safe implementation exists with acceptable correctness and
+  performance.
+
+A task that explicitly requests work on a named FFI, raw-pointer, allocator,
+kernel, or unsafe-abstraction surface counts as approval for that exact
+surface. The approved surface is the minimal set of FFI entrypoints, types,
+and unsafe operations the task names or necessarily implies; `unsafe` outside
+that set — helper allocators, general-purpose parsers, unrelated modules —
+needs its own approval, and task-scoped approval never overrides rule 1 below
+when an adequate safe implementation exists for part of the work. This never
+waives the safety-proof, documentation, testing, or reporting rules below.
+
+Technical rules (apply the approval scope above before editing):
 
 1. Introduce `unsafe` only when the approved task requires it and no adequate
    safe API exists.
@@ -81,6 +101,29 @@ State:
 - which lifetimes or ownership transfers justify the operation;
 - which external contracts (kernel, FFI, hardware) are assumed;
 - why concurrent access is safe if shared state is involved.
+
+### FFI contract checklist
+
+For every foreign boundary, record and verify:
+
+- ABI: the correct `extern` ABI string and, on edition 2024, the `unsafe
+  extern` form;
+- layout: every parameter, return type, and nested field crossing the
+  boundary has a defined, ABI-compatible representation and a valid-value set
+  matching the foreign contract. `repr(C)` does not repair non-FFI-safe nested
+  fields, and `repr(transparent)` is only as FFI-safe as the field it
+  delegates to; keep `improper_ctypes` / `improper_ctypes_definitions` passing
+  and match integer widths to the foreign declaration;
+- nullability and validity: which pointers may be null or dangling, and how
+  long each pointer must remain valid;
+- strings and buffers: length, encoding, and termination conventions on both
+  sides;
+- ownership: which side allocates, which function frees, and the double-free
+  and leak behavior of every error path;
+- callbacks: threading assumptions, reentrancy, context-pointer lifetime, and
+  panic containment (`catch_unwind` or abort) so no Rust panic crosses a
+  non-unwinding ABI boundary;
+- errors: how foreign error codes or `errno` map into typed Rust errors.
 
 ### Safe abstraction checklist
 

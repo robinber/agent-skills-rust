@@ -69,7 +69,18 @@ Check explicitly for:
 - stronger generic/lifetime bounds or changed associated types;
 - variants added to publicly matchable error enums and other exhaustiveness
   hazards;
+- transitions to or from `#[non_exhaustive]` on types and variants;
+- `repr`, layout, or ABI changes on types callers may rely on;
+- dependency types re-exported or otherwise embedded in the public API;
+- macro output and resolution behavior visible to downstream crates;
+- new inherent methods or blanket implementations that can change downstream
+  method resolution;
 - dependency or API changes that raise the declared MSRV.
+
+For published crates, treat the Cargo Book's SemVer compatibility chapter as
+the authoritative checklist; this local list highlights common risks and is not
+exhaustive. `cargo semver-checks` is supporting evidence, not proof that every
+semantic, layout, macro, feature, or behavioral concern is covered.
 
 Use the repository's compatibility job when configured. Otherwise consider
 [`cargo-semver-checks`](https://github.com/obi1kenobi/cargo-semver-checks) when
@@ -102,6 +113,17 @@ turn a manual review into a machine-verified compatibility claim.
   rather than deriving full dumps.
 - Preserve semver compatibility for published/reusable crates unless the exact
   break has explicit approval under `SKILL.md`.
+
+### Anti-overengineering
+
+- Prefer the smallest coherent change that preserves existing correct local
+  design.
+- Do not introduce a trait, generic parameter, builder, dependency, feature,
+  or crate solely for hypothetical future reuse.
+- Abstract stable shared knowledge or a real boundary, not merely similar
+  syntax.
+- Preserve correct local idioms; keep unrelated cleanup out of the patch unless
+  it is required to make the requested change safe and understandable.
 
 ## 4. Allowed exceptions
 

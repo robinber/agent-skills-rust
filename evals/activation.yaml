@@ -6,7 +6,7 @@ scenarios:
     should_trigger: true
     expected:
       task_class: "code review"
-      references: ["references/workflow.md"]
+      references: ["references/workflow.md", "references/review.md"]
   - id: add-cargo-feature
     prompt: "Add a Cargo feature to this workspace and verify its feature rows."
     should_trigger: true
@@ -24,7 +24,7 @@ scenarios:
     should_trigger: true
     expected:
       task_class: "unsafe or FFI"
-      references: ["references/unsafe.md", "references/testing.md"]
+      references: ["references/unsafe.md", "references/testing.md", "references/review.md", "references/workflow.md"]
   - id: update-msrv
     prompt: "Raise the declared MSRV and align this Rust repository's CI."
     should_trigger: true
@@ -36,19 +36,19 @@ scenarios:
     should_trigger: true
     expected:
       task_class: "dependency change"
-      references: ["references/workflow.md", "references/drift-control.md"]
+      references: ["references/workflow.md", "references/drift-control.md", "references/dependencies-release.md"]
   - id: fix-overflow
     prompt: "Fix this arithmetic overflow bug in the Rust parser."
     should_trigger: true
     expected:
       task_class: "bug fix"
-      references: ["references/workflow.md", "references/testing.md"]
+      references: ["references/workflow.md", "references/testing.md", "references/correctness-safety.md"]
   - id: review-doctest
     prompt: "Review these Rust doctest changes and verify the public examples."
     should_trigger: true
     expected:
       task_class: "documentation-only"
-      references: ["references/docs.md", "references/workflow.md"]
+      references: ["references/docs.md", "references/workflow.md", "references/review.md"]
   - id: explain-ownership
     prompt: "Explain Rust ownership to a beginner with a small example."
     should_trigger: false

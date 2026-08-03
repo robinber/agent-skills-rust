@@ -14,7 +14,10 @@ atomics, spawned tasks, blocking pools, or concurrent public contracts.
 
 ## 2. Locks and shared state
 
-- Never hold a synchronous mutex or read/write guard across `.await`.
+- Never hold a synchronous (blocking) mutex or read/write guard across
+  `.await`. Async-aware lock guards may cross `.await` when the protected
+  operation requires it; keep the guarded section minimal and do not await
+  unrelated work while holding the guard.
 - Keep critical sections short and free of blocking I/O, callbacks, and
   re-entrant calls.
 - Define and document lock ordering when more than one lock can be acquired.
@@ -53,8 +56,11 @@ atomics, spawned tasks, blocking pools, or concurrent public contracts.
 
 ## 6. Atomics and auto-traits
 
-- Justify every non-default atomic ordering against the synchronization relation
-  it establishes. Do not use `Relaxed` merely for speed.
+- Justify every atomic ordering, including `SeqCst`, by naming the
+  synchronization relationship it establishes; atomics have no default
+  ordering. Do not use `Relaxed` merely for speed.
+- For compare-exchange operations, justify the success and failure orderings
+  separately.
 - Prefer locks or channels when the atomic state machine is harder to prove than
   the performance benefit warrants.
 - Review `Send` and `Sync` as public contracts, including captured values,

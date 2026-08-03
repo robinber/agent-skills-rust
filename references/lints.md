@@ -103,8 +103,12 @@ table.
 ## 5. Allowed exceptions
 
 - A global `pedantic` setting is acceptable as deliberate repository policy.
-- Global `nursery` or `restriction` groups are **not** acceptable. Cherry-pick
+- Do not newly enable the complete `nursery` or `restriction` group. Cherry-pick
   individual lints only, with operator-approved policy and measured signal.
+- When the repository already deliberately enables one of these groups,
+  preserve its documented contract unless the task is lint-policy repair.
+  Surface contradictory, unstable, or excessively noisy outcomes instead of
+  silently overriding repository policy.
 - A temporary `allow`/`expect` is acceptable for an upstream false positive, a
   compiler or Clippy limitation, or a known migration path, with justification
   and cleanup plan.
