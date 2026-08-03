@@ -46,3 +46,21 @@ scenarios:
       completion_state: "COMPLETE"
       verification: ["Confirm every panic-contract condition locally, name the violated invariant in the panic message, and report the exception."]
       forbidden_claims: ["Separate operator approval is required for a policy-permitted internal invariant panic.", "Wrapping the bug in an artificial Result is mandatory."]
+  - id: task-unsafe-surface-stretch
+    prompt: "While implementing an approved binding to a named C library, adding a custom allocator with new unsafe in an unrelated module looks convenient."
+    expected:
+      classification: "unsafe or FFI"
+      references: ["references/unsafe.md", "references/testing.md"]
+      decision: "request_explicit_approval"
+      completion_state: "BLOCKED"
+      verification: ["Scope the task approval to the minimal surface the named binding names or necessarily implies and request separate approval for unsafe outside it."]
+      forbidden_claims: ["The named-library task approves unsafe anywhere in the crate.", "Convenience for the binding makes the allocator part of the approved surface."]
+  - id: invariant-panic-after-weak-parse
+    prompt: "Silence a post-parse validation gap by labeling an expect on unvalidated untrusted fields as an internal invariant."
+    expected:
+      classification: "implementation"
+      references: ["references/workflow.md", "references/testing.md", "references/errors.md"]
+      decision: "blocked"
+      completion_state: "BLOCKED"
+      verification: ["Classify the panic as a boundary error because no prior fallible validation made the invalid state unrepresentable; return a typed error instead."]
+      forbidden_claims: ["A local invariant comment converts untrusted input into a programmer bug."]

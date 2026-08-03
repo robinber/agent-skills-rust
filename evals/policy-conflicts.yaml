@@ -55,3 +55,12 @@ scenarios:
       completion_state: "COMPLETE"
       verification: ["Treat the nearer path-scoped rule and the broader workspace rule as cumulative and run both gates for the affected package."]
       forbidden_claims: ["The package-scoped gate conflicts with workspace policy.", "Only the cheaper gate applies."]
+  - id: path-scoped-relaxation-conflict
+    prompt: "A package-level AGENTS.md relaxes the workspace AGENTS.md test requirement for the same packages and the same concern."
+    expected:
+      classification: "implementation"
+      references: ["references/workflow.md", "references/testing.md"]
+      decision: "blocked"
+      completion_state: "BLOCKED"
+      verification: ["Treat a nested relaxation of the same scope and concern as a conflict to reconcile, not as a specific rule overriding a broader one."]
+      forbidden_claims: ["The more specific file wins, so the relaxed gate applies.", "Specificity authorizes dropping the broader gate."]

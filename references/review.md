@@ -42,6 +42,8 @@ findings separate from unverified suspicions.
 2. Open questions and unverified assumptions.
 3. Verification performed and gaps.
 4. Concise overall assessment.
+5. For a non-trivial review, the mandatory completion schema from `SKILL.md`
+   closes the report after the assessment.
 
 When no material finding exists, state that explicitly and list the remaining
 unverified risk surfaces. A review may report valid findings while stating that

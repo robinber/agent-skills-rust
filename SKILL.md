@@ -34,7 +34,10 @@ Rules in this skill and its references use three enforcement levels:
 - **ADVISORY** (`may`, `consider`, `when practical`) — additional guidance that
   never blocks completion by itself.
 
-Never promote a DEFAULT or ADVISORY rule into a hard gate.
+Never promote a DEFAULT or ADVISORY rule into a hard gate. Bare imperatives in
+the stop matrix, the completion contract, and the safety, panic, and integrity
+contracts are HARD; unmarked guidance elsewhere is DEFAULT unless it protects
+correctness, safety, or evidence integrity.
 
 ## Policy precedence
 
@@ -71,13 +74,17 @@ conflict:
    rule governs.
 2. Apply the nearest path-scoped repository instruction to its scope; apply
    each manifest or tool configuration to the concern it governs.
-3. Treat complementary gates as cumulative, and prefer the more specific
-   applicable rule over a broader default.
-4. Declare a conflict only when two applicable rules impose incompatible
-   outcomes on the same scope and concern. Then stop the affected work, quote
-   both rules, and resume only after reconciliation or an exact operator
-   decision establishes the scoped deviation. Never pick the rule that merely
-   permits more progress.
+3. Distinguish three cases: a nested rule that adds a stricter or additional
+   gate is cumulative with the broader rule — run both; a nested rule that
+   governs a narrower scope without contradicting the broader rule wins inside
+   that scope while the broader rule still applies outside it; a nested rule
+   that relaxes a broader rule on the same scope and concern is a conflict,
+   never a specificity override.
+4. Declare a conflict when two applicable rules impose incompatible outcomes —
+   outcomes that cannot both be satisfied — on the same scope and concern.
+   Then stop the affected work, quote both rules, and resume only after
+   reconciliation or an exact operator decision establishes the scoped
+   deviation. Never pick the rule that merely permits more progress.
 
 ## Explicit approval
 
@@ -101,14 +108,14 @@ Use these actions consistently:
 
 | Situation | Required action | Completion consequence |
 |---|---|---|
-| Introduce new `unsafe` or expand an unsafe boundary | Apply the approval-scope rule in `references/unsafe.md` before editing; a task that explicitly names the unsafe/FFI surface counts as approval for that exact surface | Without applicable approval: `BLOCKED` |
+| Introduce new `unsafe` or expand an unsafe boundary | Apply the approval-scope rule in `references/unsafe.md` before editing; a task naming an unsafe/FFI surface approves only the minimal surface it names or necessarily implies, and every technical rule in that reference still applies | Without applicable approval: `BLOCKED` |
 | Weaken `unsafe_code`, Rust, Clippy, rustdoc, or Cargo lint policy | Request exact approval and update the documented repository contract | Without approval, or if soundness would regress: `BLOCKED` |
 | Relax `deny.toml` | Request exact approval and document the supply-chain rationale | Without approval: `BLOCKED` |
 | Change declared MSRV | Request exact approval; align manifests, CI, and docs | Without approval: `BLOCKED` |
 | Make a public semver-breaking change | Request exact approval for the named break | Without approval: `BLOCKED` |
 | Add a git dependency or wildcard dependency | Request exact approval and report source/version risk | Without approval: `BLOCKED` |
 | Skip or bypass a required verification gate | Do not claim it passed; use the best fallback and report the uncovered surface | `COMPLETE WITH GAPS`, or `BLOCKED` when that gate is required for the requested outcome |
-| Add an internal invariant panic | Apply the canonical panic contract in `references/errors.md`; approval is needed only when repository policy forbids it or a caller-visible panic contract broadens | Any unmet contract condition: `BLOCKED` |
+| Add an internal invariant panic | Apply every condition of the canonical panic contract in `references/errors.md`; separate approval is needed only when repository policy forbids it or a caller-visible panic contract broadens | Any unmet contract condition: `BLOCKED` |
 | Modify generated or vendor code contrary to repository policy | Request exact approval; prefer changing the generator or upstream source | Without approval: `BLOCKED` |
 | Two applicable rules impose incompatible outcomes on the same scope and concern | Stop the affected work and quote both rules after the applicability resolution above | `BLOCKED` until reconciled |
 
@@ -181,7 +188,10 @@ If a tool is unavailable, follow the fallback and state-selection rules in
 `references/workflow.md`. An unavailable optional tool is not automatically a
 blocker; a failing required gate or missing evidence required by the requested
 outcome is. A gate is required only per the definition in
-`references/workflow.md`; never invent additional blocking conditions.
+`references/workflow.md`; never invent additional blocking conditions. The
+decision-table minimum verification for the active task classes is the
+completion floor, not optional evidence — "never invent blocking conditions"
+applies only beyond that floor.
 
 Classify every observed failure as introduced, affected pre-existing, unrelated
 pre-existing, or indeterminate per `references/workflow.md` before selecting a
@@ -192,8 +202,10 @@ merely to obtain a green global command, and never claim the global gate passed.
 
 Use exactly one state for non-trivial work:
 
-- **COMPLETE** — The requested behavior is implemented or reviewed and every
-  required scoped gate passed.
+- **COMPLETE** — The requested behavior is implemented or reviewed, the
+  decision-table minimum verification for every applicable task class ran
+  (unless the repository contract explicitly narrows it), and every required
+  scoped gate passed.
 - **COMPLETE WITH GAPS** — The requested work is done and no required gate is
   known to fail, but one or more relevant checks could not run. List every gap
   and uncovered surface. Do not use this state when the requested outcome itself

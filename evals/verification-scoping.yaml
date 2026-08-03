@@ -46,3 +46,21 @@ scenarios:
       completion_state: "COMPLETE"
       verification: ["Confirm the failure exists on the pre-change baseline, classify it as unrelated pre-existing, keep the scoped claim, and report it with evidence."]
       forbidden_claims: ["The workspace gate passed.", "The unrelated failure must be repaired before completion."]
+  - id: preexisting-without-baseline
+    prompt: "A relevant but not repository-required workspace test failure is first observed after the change, and no pre-change baseline or CI history is available."
+    expected:
+      classification: "implementation"
+      references: ["references/workflow.md", "references/testing.md"]
+      decision: "continue_and_report"
+      completion_state: "COMPLETE WITH GAPS"
+      verification: ["Classify the failure as indeterminate without baseline evidence, attempt a narrower reproducer, and report the failure explicitly."]
+      forbidden_claims: ["The failure is unrelated pre-existing because the failing package is not named in the task."]
+  - id: minimum-verification-floor
+    prompt: "An implementation change compiles; the focused test and scoped Clippy are available but have not been run, and no repository gate names them."
+    expected:
+      classification: "implementation"
+      references: ["references/workflow.md", "references/testing.md"]
+      decision: "continue"
+      completion_state: "COMPLETE"
+      verification: ["Run the task-class minimum verification (focused test plus scoped Clippy) before claiming COMPLETE; available minimum verification is the completion floor."]
+      forbidden_claims: ["Minimum verification is only recommended evidence because no repository gate requires it."]

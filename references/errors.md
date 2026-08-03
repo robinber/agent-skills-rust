@@ -19,8 +19,10 @@
   convention first; use `thiserror` when it is already present or its
   introduction has a clear maintenance benefit. A small error type may implement
   `Display`, `Error`, and `From` manually without adding a dependency.
-- Default: do not introduce `panic!`, `unwrap`, `expect`, `todo!`, or
-  `unimplemented!` in non-test production code. Use typed errors and `?`.
+- Do not introduce `panic!`, `unwrap`, `expect`, `todo!`, or `unimplemented!`
+  in non-test production code; the panic contract below is the only path to an
+  exception. Never ship `todo!` or `unimplemented!` on reachable non-test
+  paths. Use typed errors and `?`.
 - Prefer `build` / `try_new` / `TryFrom` for fallible construction when that
   clarifies the API; a fallible `new() -> Result<…>` is fine when it matches the
   crate convention (std sometimes uses fallible `new`).
@@ -42,9 +44,16 @@
 
 - Prefer making illegal states unrepresentable over runtime panics.
 - Never introduce panic paths reachable from untrusted input, parsing, I/O,
-  configuration, capacity or resource exhaustion, or ordinary environmental
+  configuration, anticipated capacity limits, or ordinary environmental
   failure. Those are recoverable boundary conditions and must return typed
-  errors.
+  errors through fallible APIs (for example `try_reserve` for foreseeable
+  allocation limits). Global allocator exhaustion is out of scope: infallible
+  std allocation aborts on failure, so do not promise typed errors for it
+  unless the repository deliberately adopts a fallible-allocation strategy.
+- A panic reachable from untrusted or external input without a prior fallible
+  constructor or validation step that made the invalid state unrepresentable
+  is a boundary error, whatever a local invariant comment claims. Treat panics
+  in private helpers reachable from public APIs as caller-visible.
 - Allow a narrowly scoped internal invariant panic without separate approval
   only when **all** of these conditions hold:
   1. repository lint and panic policy permits it;

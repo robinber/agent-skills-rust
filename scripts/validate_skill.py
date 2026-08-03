@@ -71,6 +71,11 @@ REQUIRED_BEHAVIOR_IDS = {
     "unrelated-preexisting-failure",
     "task-scoped-unsafe-approval",
     "invariant-panic-programmer-bug",
+    "path-scoped-relaxation-conflict",
+    "preexisting-without-baseline",
+    "minimum-verification-floor",
+    "task-unsafe-surface-stretch",
+    "invariant-panic-after-weak-parse",
 }
 REQUIRED_COMMAND_IDS = {
     "fmt-check",
@@ -558,7 +563,10 @@ def validate_policy_ownership() -> None:
     if panic_headers != ["references/errors.md"]:
         fail(f"panic contract must exist only in references/errors.md, got {panic_headers}")
 
-    errors_reference = markdown.get("references/errors.md", "")
+    def normalized(text: str) -> str:
+        return re.sub(r"\s+", " ", text)
+
+    errors_reference = normalized(markdown.get("references/errors.md", ""))
     required_panic_terms = (
         "repository lint and panic policy permits it",
         "programmer bug",
@@ -566,10 +574,41 @@ def validate_policy_ownership() -> None:
         "mechanically scoped",
         "broadens a caller-visible panic contract",
         "never control flow",
+        "prior fallible constructor",
+        "private helpers reachable from public APIs",
     )
     for term in required_panic_terms:
         if term not in errors_reference:
             fail(f"references/errors.md: panic contract missing {term!r}")
+
+    contract_phrases = {
+        "SKILL.md": (
+            "## Normative language",
+            "Classification is additive",
+            "completion floor",
+            "## Baseline failures",
+            "incompatible outcomes",
+        ),
+        "references/workflow.md": (
+            "A gate is **required** only when",
+            "unrelated pre-existing",
+            "indeterminate",
+            "baseline evidence",
+            "## 8. Final diff audit",
+            "completion floor",
+        ),
+        "references/unsafe.md": (
+            "### Approval scope",
+            "minimal set of FFI entrypoints",
+            "never waives the safety-proof",
+        ),
+    }
+    for path_key, phrases in contract_phrases.items():
+        content = markdown.get(path_key, "")
+        flat = normalized(content)
+        for phrase in phrases:
+            if phrase not in content and phrase not in flat:
+                fail(f"{path_key}: missing required contract phrase {phrase!r}")
 
     skill = markdown.get("SKILL.md", "")
     for heading in (

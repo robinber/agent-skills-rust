@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+Cross-review hardening (Codex technical axis, Grok operational axis):
+
+- Bind `COMPLETE` to the decision-table minimum verification of every
+  applicable task class; "never invent blocking conditions" applies only
+  beyond that floor.
+- Define the approved unsafe surface as the minimal set of FFI entrypoints,
+  types, and operations the task names or necessarily implies.
+- Split nested-rule resolution into cumulative, narrower-scope, and
+  relaxation cases; a nested relaxation on the same scope and concern is a
+  conflict, never a specificity override.
+- Require baseline evidence (pre-change tree or CI history) before labeling a
+  failure pre-existing; without it the classification is indeterminate.
+- Treat panics reachable from untrusted input without prior fallible
+  validation as boundary errors regardless of local invariant comments, and
+  panics in private helpers reachable from public APIs as caller-visible.
+- Correct the FFI layout rule (`repr` attributes do not make nested fields
+  FFI-safe; require `improper_ctypes*` to pass), the Windows argv caveat for
+  `cmd.exe`/batch files, continuous draining of piped child streams, the
+  atomicity-versus-crash-durability split for file replacement, and the
+  allocator-exhaustion scope of the typed-error rule.
+- Map bare imperatives to normative levels, make the `todo!`/`unimplemented!`
+  ban explicit, and close the review-output versus completion-schema ordering
+  contradiction.
+- Add five adversarial behavior evals and validator contract-phrase checks so
+  the new enforcement semantics cannot silently rot.
+
+Initial normative-semantics rework:
+
 - Add explicit HARD / DEFAULT / ADVISORY normative levels and forbid promoting
   defaults into hard gates.
 - Make task classification additive across decision-table rows.

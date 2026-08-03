@@ -138,7 +138,10 @@ A gate is **required** only when at least one of these holds:
 4. the change affects a supported row that no narrower evidence can exercise.
 
 Everything else this skill recommends is recommended evidence, not a required
-gate. Do not invent additional blocking conditions.
+gate. Do not invent additional blocking conditions beyond the completion
+floor: the decision-table minimum verification for the active task classes
+must run before `COMPLETE` whenever the needed tools are available (see the
+completion contract in `SKILL.md`).
 
 Classify a missing or unusable command before selecting the final state:
 
@@ -163,7 +166,11 @@ Classify every observed failure before selecting a state:
 
 - **introduced** — caused by the change. In a required scoped gate: `BLOCKED`.
 - **affected pre-existing** — predates the change but involves the changed
-  surface. `BLOCKED` for the affected claim until understood.
+  surface. `BLOCKED` for the affected claim until analyzed: when the change
+  does not worsen the failure and the claim does not depend on the broken
+  path, report it and keep the scoped claim; when the change intersects the
+  failure or the claim needs that path, stay `BLOCKED` until it is fixed or
+  the scope is reduced.
 - **unrelated pre-existing** — predates the change and does not involve the
   changed surface. Do not repair it out of scope merely to obtain a green
   global command, and never claim the global gate passed. Report it with
@@ -171,8 +178,13 @@ Classify every observed failure before selecting a state:
 - **indeterminate** — no reliable baseline distinguishes the cases. Build a
   narrower reproducer or report the gap.
 
-Establish the baseline cheaply when possible: run the failing command on the
-pre-change tree or consult CI history before classifying.
+Classifying a failure as affected or unrelated pre-existing requires baseline
+evidence: the same command failing on the pre-change tree, or authoritative CI
+history. Without baseline evidence the classification is indeterminate, and an
+indeterminate failure in a required gate prevents `COMPLETE`. A failure
+involves the changed surface when it exercises shared code, public API,
+features, or dependencies of the change set — not merely when the failing
+package is named in the task.
 
 This applies to Miri, sanitizers, `cargo deny`, `cargo semver-checks`, target
 toolchains, external services, and machine-specific harnesses. Absence of an

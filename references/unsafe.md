@@ -57,8 +57,12 @@ of these holds:
 
 A task that explicitly requests work on a named FFI, raw-pointer, allocator,
 kernel, or unsafe-abstraction surface counts as approval for that exact
-surface. This never waives the safety-proof, documentation, testing, or
-reporting rules below.
+surface. The approved surface is the minimal set of FFI entrypoints, types,
+and unsafe operations the task names or necessarily implies; `unsafe` outside
+that set — helper allocators, general-purpose parsers, unrelated modules —
+needs its own approval, and task-scoped approval never overrides rule 1 below
+when an adequate safe implementation exists for part of the work. This never
+waives the safety-proof, documentation, testing, or reporting rules below.
 
 Technical rules (apply the approval scope above before editing):
 
@@ -104,8 +108,12 @@ For every foreign boundary, record and verify:
 
 - ABI: the correct `extern` ABI string and, on edition 2024, the `unsafe
   extern` form;
-- layout: `repr(C)` / `repr(transparent)` on types crossing the boundary, and
-  integer widths matching the foreign declaration;
+- layout: every parameter, return type, and nested field crossing the
+  boundary has a defined, ABI-compatible representation and a valid-value set
+  matching the foreign contract. `repr(C)` does not repair non-FFI-safe nested
+  fields, and `repr(transparent)` is only as FFI-safe as the field it
+  delegates to; keep `improper_ctypes` / `improper_ctypes_definitions` passing
+  and match integer widths to the foreign declaration;
 - nullability and validity: which pointers may be null or dangling, and how
   long each pointer must remain valid;
 - strings and buffers: length, encoding, and termination conventions on both
