@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Accept standard source-checkout directory names while keeping the
+  `rust-strict` install-directory contract in discovery validation.
+- Allow a release version to be prepared before its matching Git tag exists;
+  still reject tags newer than `VERSION`.
+- Align the README pin example with the current release so `main` validation
+  remains green after tagging.
+
 ## 1.1.0 — 2026-08-03
 
 - Define deterministic policy precedence, exact approval semantics, stop
