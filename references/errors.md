@@ -18,9 +18,9 @@
   error type (`thiserror` is the default preference), not erase errors too early.
 - In non-test production code, do not use `unwrap`, `expect`, `panic!`,
   `todo!`, or `unimplemented!`. Use typed errors and `?`.
-- Prefer `build` / `try_new` / `TryFrom` for fallible construction over a
-  fallible `new` when designing new APIs (house style; std sometimes uses
-  fallible `new`).
+- Prefer `build` / `try_new` / `TryFrom` for fallible construction when that
+  clarifies the API; a fallible `new() -> Result<…>` is fine when it matches the
+  crate convention (std sometimes uses fallible `new`).
 - Make fallibility obvious in the API name and docs.
 - Prefer `?` over manual propagation unless you need to attach context or
   translate the error.

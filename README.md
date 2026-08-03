@@ -51,7 +51,7 @@ enough:
 ```bash
 # Example: canonical checkout for Codex, symlinks for others
 mkdir -p .agents/skills .claude/skills .grok/skills
-git submodule add <YOUR_GITHUB_URL> .agents/skills/rust-strict
+git submodule add https://github.com/robinber/agent-skills-rust.git .agents/skills/rust-strict
 ln -sfn ../../.agents/skills/rust-strict .claude/skills/rust-strict
 ln -sfn ../../.agents/skills/rust-strict .grok/skills/rust-strict
 ```
@@ -64,7 +64,7 @@ Point `AGENTS.md` at the path your primary agent uses (see
 ```bash
 # from the consuming project root — pick the path for your primary tool
 mkdir -p .agents/skills
-git submodule add <YOUR_GITHUB_URL> .agents/skills/rust-strict
+git submodule add https://github.com/robinber/agent-skills-rust.git .agents/skills/rust-strict
 git submodule update --init --recursive
 ```
 
@@ -83,7 +83,7 @@ git commit -m "Pin rust-strict skill to v1.0.1"
 
 ```bash
 mkdir -p .agents/skills
-git clone --depth 1 --branch v1.0.1 <YOUR_GITHUB_URL> .agents/skills/rust-strict
+git clone --depth 1 --branch v1.0.1 https://github.com/robinber/agent-skills-rust.git .agents/skills/rust-strict
 rm -rf .agents/skills/rust-strict/.git
 ```
 

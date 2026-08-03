@@ -63,7 +63,8 @@ contract:
   (MSRV) live here (or via workspace package inheritance).
 - `rust-toolchain.toml` — pinned toolchain channel, required components, and
   profile (what agents run by default — not a substitute for MSRV).
-- `.rustfmt.toml` — formatting baseline; note whether any option needs nightly.
+- `.rustfmt.toml` or `rustfmt.toml` — formatting baseline; note whether any
+  option needs nightly.
 - `clippy.toml` — MSRV, doc-valid-idents, test-allow knobs, and thresholds.
 - `.cargo/config.toml` — cargo aliases when present.
 - `deny.toml` — dependency advisory, license, bans, and source policy.
@@ -193,18 +194,25 @@ for the change, then widen only when the touched surface justifies it.
 Adapt each line to the anchored contract:
 
 ```bash
-# fmt: use the repo toolchain; add +nightly only if .rustfmt.toml / AGENTS require it
+# fmt: use the repo toolchain; add +nightly only if rustfmt config / AGENTS require it
 cargo fmt --all --check
 
-# clippy: package or workspace as appropriate; feature set from CI/AGENTS/default
-cargo clippy -p <package> --all-targets -- <features-or-default> -- -D warnings
+# clippy: put package/target/feature selection BEFORE `--`; lint flags AFTER
+# Omit -p / target / feature flags when package defaults are intended.
+cargo clippy -p <package> <target-selection> <feature-selection> -- -D warnings
 
-# docs
-RUSTDOCFLAGS="-D warnings" cargo doc -p <package> --no-deps <features-or-default>
+# docs (feature selection before any rustc-style flags; none needed for doc here)
+RUSTDOCFLAGS="-D warnings" cargo doc -p <package> --no-deps <feature-selection>
 
 # supply chain (only if deny.toml exists): run all configured checks
 cargo deny check
 ```
+
+Placeholders:
+
+- `<target-selection>` — e.g. `--all-targets`, `--lib`, or omit for defaults
+- `<feature-selection>` — e.g. `--all-features`, `--no-default-features`,
+  `--features foo`, or omit for package defaults
 
 In a workspace, prefer package scope during iteration and workspace scope for
 shared policy, cross-package, or release verification. Prefer explicit

@@ -16,8 +16,10 @@
   would communicate intent better.
 - Keep public fields private when future layout changes should not break
   callers; expose accessors or constructors instead.
-- For fallible construction, prefer `try_new` / `build` / `TryFrom` over a
-  fallible `new`.
+- For fallible construction, follow the crate's existing convention. Prefer
+  `try_new` / `build` / `TryFrom` when that better distinguishes a fallible
+  constructor from an infallible `new`; a fallible `new() -> Result<…>` is valid
+  idiomatic Rust when that is the established API.
 - Seal traits that are not meant for downstream implementation.
 
 ### Async public traits

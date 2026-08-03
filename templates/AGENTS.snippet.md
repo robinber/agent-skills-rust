@@ -18,7 +18,8 @@ matrix): `.agents/skills/` (Codex), `.claude/skills/` (Claude Code),
    for Rust or Cargo work. (Change this path if the skill is installed under
    `.claude/skills` or `.grok/skills`.)
 4. Rust policy files: `Cargo.toml`, `rust-toolchain.toml`, `.cargo/config.toml`,
-   `.rustfmt.toml`, `clippy.toml`, and `deny.toml` when they exist.
+   `.rustfmt.toml` or `rustfmt.toml`, `clippy.toml`, and `deny.toml` when they
+   exist.
 5. Subsystem documentation next to the code being changed.
 
 When these documents appear to disagree, stop and surface the conflict. Do not

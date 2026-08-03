@@ -3,9 +3,9 @@
 ## 1. Source-backed guidance
 
 - Start from the policy files that exist: `Cargo.toml` (package and/or workspace
-  tables), `rust-toolchain.toml`, `.rustfmt.toml`, `clippy.toml`,
-  `.cargo/config.toml`, and `deny.toml`. CI workflow files join the effective
-  contract once they exist.
+  tables), `rust-toolchain.toml`, `.rustfmt.toml` or `rustfmt.toml`,
+  `clippy.toml`, `.cargo/config.toml`, and `deny.toml`. CI workflow files join
+  the effective contract once they exist.
 - Treat package or inherited `[workspace.package]` `rust-version` as the MSRV
   declaration. Treat `rust-toolchain.toml` as the default *execution* toolchain.
   They are not the same thing; both matter.
@@ -30,15 +30,19 @@ repository; do not hardcode nightly or `--all-features`.
 # fmt — repo toolchain; +nightly only if required
 cargo fmt --all --check
 
-# clippy — package/workspace and feature row from contract
-cargo clippy -p <package> --all-targets <features-or-default> -- -D warnings
+# clippy — package/target/feature selection BEFORE `--`; lint flags AFTER
+# Example with explicit selections; omit any selection you do not need:
+cargo clippy -p <package> <target-selection> <feature-selection> -- -D warnings
 
 # docs
-RUSTDOCFLAGS="-D warnings" cargo doc -p <package> --no-deps <features-or-default>
+RUSTDOCFLAGS="-D warnings" cargo doc -p <package> --no-deps <feature-selection>
 
 # supply chain — only if deny.toml exists; run ALL configured checks
 cargo deny check
 ```
+
+`<target-selection>` examples: `--all-targets`, `--lib`, or omit.  
+`<feature-selection>` examples: `--all-features`, `--features foo`, or omit.
 
 In a workspace, add `--workspace` (or explicit `-p` selection) when the change
 spans members or shared policy. During iteration, package-scoped commands are

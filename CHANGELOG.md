@@ -2,7 +2,14 @@
 
 ## 1.0.1 — 2026-08-03
 
-Operability and portability fixes from independent Codex review.
+Operability and portability fixes from independent Codex review, plus
+pre-publish fixes from the Codex re-review:
+
+- Fix malformed canonical `cargo clippy` template (feature/target before `--`).
+- Replace install URL placeholders with `https://github.com/robinber/agent-skills-rust`.
+- Anchor on both `.rustfmt.toml` and `rustfmt.toml`.
+- Copyright holder in `LICENSE`.
+- Soften fallible-`new` / `try_new` guidance as convention-dependent.
 
 - Install: document Codex / Claude Code / Grok skill path matrix; symlink recipe.
 - Verification: derive toolchain, package scope, and feature rows from the repo;
