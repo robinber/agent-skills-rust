@@ -28,8 +28,9 @@ that flag:
 
 - Broken intra-doc links are build failures.
 - Bare URLs and other rustdoc warnings are build failures.
-- Private intra-doc links are build failures when configured as warnings/denials
-  in the package.
+- Private intra-doc links (`rustdoc::private_intra_doc_links`) are
+  warn-by-default, so they fail the build under `-D warnings` without extra
+  package configuration.
 
 `cargo doc` does **not** run doctests. When runnable rustdoc examples change,
 also run:

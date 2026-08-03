@@ -25,10 +25,13 @@
 This skill's preferred suppression form uses features stabilized in recent
 Rust:
 
-| Construct | Approx. floor | Older MSRV fallback |
+| Construct | Approx. floor | Older MSRV / Cargo fallback |
 |---|---|---|
 | `#[expect(...)]` and lint `reason = "..."` | Rust **1.81** | `#[allow(...)]` with a short adjacent comment |
-| `[workspace.lints]` respected by members | Cargo **1.74+** | package-level `[lints]` duplicated carefully, or upgrade Cargo |
+| Manifest `[lints]` / `[workspace.lints]` | Cargo **1.74+** | Crate-root `#![deny(...)]` / `#![warn(...)]` attributes, or lint flags in the verification command; upgrade Cargo when possible |
+
+Note: package-level `[lints]` and `[workspace.lints]` stabilized together in
+Cargo 1.74. On older Cargo, a package `[lints]` table is not a valid fallback.
 
 If the package MSRV is older than the skill floor, keep the same intent with
 syntax the MSRV compiler accepts. Do not introduce 1.81-only attributes into a

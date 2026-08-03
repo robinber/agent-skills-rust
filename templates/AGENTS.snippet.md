@@ -1,11 +1,13 @@
 # AGENTS.md snippet for projects using rust-strict
 
-Copy and adapt the sections below into the consuming repository's `AGENTS.md`.
+Copy and adapt the sections below into the consuming repository's `AGENTS.md`
+(or `CLAUDE.md`, whichever your tool loads as the project agent contract).
 Do **not** paste the full skill body here — only the project contract.
 
 Adjust the skill path for your primary agent tool (see the README install
 matrix): `.agents/skills/` (Codex), `.claude/skills/` (Claude Code),
-`.grok/skills/` (Grok).
+`.grok/skills/` (Grok). The install **directory name must be `rust-strict`**
+(matches the skill frontmatter `name`).
 
 ---
 

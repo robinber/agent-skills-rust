@@ -46,8 +46,8 @@ and the
 
 Hard rules:
 
-1. Do not introduce `unsafe` unless the slice requires it and no safe API is
-   adequate.
+1. Do not introduce `unsafe` unless the task requires it and no safe API is
+   adequate. Treat new `unsafe` as needing explicit operator sign-off.
 2. Keep `unsafe` blocks as small as possible. Push checks and setup into safe
    code around them.
 3. Every `unsafe` block must include a `// SAFETY:` comment that states the local

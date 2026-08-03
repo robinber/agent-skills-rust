@@ -116,8 +116,8 @@ on memory.
 - Be strict on runtime code, public APIs, error semantics, docs, safety
   contracts, dependency changes, and final verification.
 - Treat `-D warnings`, rustdoc warnings, `cargo deny` (when configured), and no
-  hidden panics in non-test code as the quality floor unless the repo documents a
-  narrower policy.
+  hidden panics in non-test code as the quality floor unless the repository
+  documents a different, explicitly scoped policy.
 - Be pragmatic on tests, examples, benches, and private glue when extra ceremony
   would not improve signal.
 - Do not impose a generic Rust preference where the repository already has a
@@ -201,7 +201,7 @@ cargo fmt --all --check
 # Omit -p / target / feature flags when package defaults are intended.
 cargo clippy -p <package> <target-selection> <feature-selection> -- -D warnings
 
-# docs (feature selection before any rustc-style flags; none needed for doc here)
+# docs
 RUSTDOCFLAGS="-D warnings" cargo doc -p <package> --no-deps <feature-selection>
 
 # supply chain (only if deny.toml exists): run all configured checks
@@ -354,8 +354,8 @@ For sizes, offsets, lengths, capacities, and budgets:
 
 ## Unsafe and safety contracts
 
-Default to safe Rust. Introduce `unsafe` only when required and approved by the
-slice.
+Default to safe Rust. Introduce `unsafe` only when the task requires it and no
+safe API is adequate; treat new `unsafe` as needing explicit operator sign-off.
 
 - Keep `unsafe` blocks as small as possible behind a safe abstraction.
 - Every `unsafe` block needs a `// SAFETY:` comment stating the invariants that

@@ -55,5 +55,6 @@
   package lint knobs allow it.
 - A CLI or TUI `main` may use `anyhow` or `Box<dyn Error>` to collapse diverse
   failures into one exit path.
-- A fallible `new` can be tolerated in existing code, but it should not be the
-  preferred shape for new APIs.
+- A fallible `new() -> Result<…>` is acceptable when it matches crate or std
+  convention. Prefer `try_new` / `build` / `TryFrom` when the crate distinguishes
+  fallible construction from an infallible `new`.

@@ -1,32 +1,35 @@
 # Changelog
 
+## 1.0.2 — 2026-08-03
+
+Fixes from independent Claude Code review of the public v1.0.1 tree.
+
+- Remove project jargon ("the slice"); require operator sign-off for new `unsafe`.
+- Install: prefer real checkouts over symlinks; document silent Claude Code
+  symlink discovery failures; require directory name `rust-strict`; Windows note.
+- Correct pre-Cargo-1.74 lint fallback (crate attributes / CLI flags, not
+  package `[lints]`).
+- Align fallible-`new` / `try_new` guidance (convention-dependent throughout).
+- README: published URL; drop hardcoded "currently" version line.
+- Docs: `private_intra_doc_links` is warn-by-default under `-D warnings`.
+- Quality floor wording: "different, explicitly scoped policy".
+- Template: mention `CLAUDE.md` alongside `AGENTS.md`.
+
 ## 1.0.1 — 2026-08-03
 
-Operability and portability fixes from independent Codex review, plus
-pre-publish fixes from the Codex re-review:
+Operability and portability fixes from independent Codex review.
 
+- Install: Codex / Claude Code / Grok path matrix and GitHub URL.
+- Verification: derive toolchain, package scope, and feature rows; no hardcoded
+  `+nightly` / `--all-features` baseline.
 - Fix malformed canonical `cargo clippy` template (feature/target before `--`).
-- Replace install URL placeholders with `https://github.com/robinber/agent-skills-rust`.
-- Anchor on both `.rustfmt.toml` and `rustfmt.toml`.
-- Copyright holder in `LICENSE`.
-- Soften fallible-`new` / `try_new` guidance as convention-dependent.
-
-- Install: document Codex / Claude Code / Grok skill path matrix; symlink recipe.
-- Verification: derive toolchain, package scope, and feature rows from the repo;
-  stop hardcoding `+nightly` and `--all-features` as the universal baseline.
-- Supply chain: use `cargo deny check` so configured bans are not skipped.
-- MSRV: separate `rust-version` from `rust-toolchain.toml`; document skill floor
-  (Rust 1.81+ for full syntax) and pre-1.81 fallbacks; add MSRV check guidance.
-- Docs: require scoped `cargo test --doc` when runnable examples change.
-- Unsafe: Edition 2024 checklist (`unsafe_op_in_unsafe_fn`, `unsafe extern`,
-  `#[unsafe(...)]`, `unsafe impl` proofs).
-- API/async: replace blanket `Send` preference with an executor decision table.
-- Secrets: secret-safe `Debug`/`Display`, no secrets on argv, qualified env/file
-  transport.
-- Drift: reframe 800/1000 LOC and six-parameter rules as default strict profile
-  (overridable via `AGENTS.md`), not uncontradictable universal law.
-- Metadata: `--locked` only when a committed lockfile exists.
-- Fix changelog wording (“portable rules”, not “greffs”).
+- Supply chain: full `cargo deny check` (includes bans).
+- MSRV vs toolchain separation; Rust 1.81 skill-syntax floor and fallbacks.
+- Docs: scoped `cargo test --doc` when runnable examples change.
+- Unsafe: Edition 2024 checklist; secret-safe Debug; async Send decision table.
+- Drift: default strict profile overridable via `AGENTS.md`.
+- Metadata: `--locked` only with a committed lockfile; dual rustfmt filenames;
+  LICENSE copyright holder.
 
 ## 1.0.0 — 2026-08-03
 

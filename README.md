@@ -8,8 +8,8 @@ This skill is **project-agnostic**. Repository policy (`AGENTS.md`,
 `Cargo.toml`, toolchain files, CI) is the effective contract; the skill teaches
 agents how to discover and enforce it without inventing policy from memory.
 
-**Version:** see [`VERSION`](VERSION) (currently `1.0.1`).  
-**Intended GitHub name:** `agent-skills-rust`.
+**Version:** see [`VERSION`](VERSION).  
+**Published at:** https://github.com/robinber/agent-skills-rust
 
 ## What this is
 
@@ -35,65 +35,84 @@ duplication lists. Put those in the consuming repository.
 
 ## Install paths (tool matrix)
 
-Agent tools load project skills from **different directories**. Install (or
-symlink) the skill where each tool actually looks:
+Agent tools load project skills from **different directories**. The install
+**directory must be named `rust-strict`** (matches the skill frontmatter
+`name`). Put a real checkout under each path your tools scan:
 
 | Tool | Project-local skill directory | Notes |
 |---|---|---|
 | **Codex** | `.agents/skills/rust-strict/` | Codex walks `.agents/skills` from cwd up to repo root |
 | **Claude Code** | `.claude/skills/rust-strict/` | Claude documents `.claude/skills` for project skills |
-| **Grok** | `.grok/skills/rust-strict/` and/or `.claude/skills/` | Prefer `.grok/skills`; `.claude/skills` often works for compatibility |
+| **Grok** | `.grok/skills/rust-strict/` (and often `.claude/skills/`) | Prefer `.grok/skills` |
 
-The **content** is portable (`SKILL.md` + `references/`). The **path** is
-tool-specific. For multi-tool repos, one submodule plus relative symlinks is
-enough:
+**Prefer real checkouts** (submodule or copy) under each path you need. Symlinks
+may work on some tools and fail silently on others (Claude Code has repeatedly
+broken symlink discovery). After install, verify the skill appears:
 
-```bash
-# Example: canonical checkout for Codex, symlinks for others
-mkdir -p .agents/skills .claude/skills .grok/skills
-git submodule add https://github.com/robinber/agent-skills-rust.git .agents/skills/rust-strict
-ln -sfn ../../.agents/skills/rust-strict .claude/skills/rust-strict
-ln -sfn ../../.agents/skills/rust-strict .grok/skills/rust-strict
-```
+- Claude Code: `/skills` and confirm `rust-strict` is listed
+- Codex: skill selector / listing
+- If missing, replace any symlink with a real copy or second submodule
 
-Point `AGENTS.md` at the path your primary agent uses (see
-[`templates/AGENTS.snippet.md`](templates/AGENTS.snippet.md)).
+Windows: creating symlinks usually requires Developer Mode or
+`git config core.symlinks true` with elevated privileges — another reason to
+prefer real checkouts.
 
-### Option A — git submodule (recommended)
+### Recommended — one tool (submodule)
 
 ```bash
-# from the consuming project root — pick the path for your primary tool
+# Codex primary
 mkdir -p .agents/skills
 git submodule add https://github.com/robinber/agent-skills-rust.git .agents/skills/rust-strict
 git submodule update --init --recursive
+
+# Claude Code primary (use this path instead if Claude is your main agent)
+# mkdir -p .claude/skills
+# git submodule add https://github.com/robinber/agent-skills-rust.git .claude/skills/rust-strict
 ```
 
-Pin a tag when you want a frozen skill version:
+### Multi-tool — real checkouts (reliable)
 
 ```bash
-cd .agents/skills/rust-strict
+mkdir -p .agents/skills .claude/skills .grok/skills
+
+# Canonical submodule for Codex
+git submodule add https://github.com/robinber/agent-skills-rust.git .agents/skills/rust-strict
+
+# Real clones for Claude / Grok (same content; pin the same tag)
+git clone --depth 1 --branch v1.0.2 \
+  https://github.com/robinber/agent-skills-rust.git .claude/skills/rust-strict
+git clone --depth 1 --branch v1.0.2 \
+  https://github.com/robinber/agent-skills-rust.git .grok/skills/rust-strict
+# Optional: remove nested .git if you want a vendored tree, not a nested repo
+# rm -rf .claude/skills/rust-strict/.git .grok/skills/rust-strict/.git
+```
+
+### Optional — symlink (verify after install)
+
+```bash
+# Only if you accept silent discovery failures on some tools
+mkdir -p .claude/skills .grok/skills
+ln -sfn ../../.agents/skills/rust-strict .claude/skills/rust-strict
+ln -sfn ../../.agents/skills/rust-strict .grok/skills/rust-strict
+# Then verify with /skills (Claude) or the Codex skill list
+```
+
+### Pin a tag
+
+```bash
+cd .agents/skills/rust-strict   # or .claude/skills/rust-strict
 git fetch --tags
-git checkout v1.0.1
+git checkout v1.0.2
 cd -
 git add .agents/skills/rust-strict
-git commit -m "Pin rust-strict skill to v1.0.1"
+git commit -m "Pin rust-strict skill to v1.0.2"
 ```
 
-### Option B — copy / vendor
-
-```bash
-mkdir -p .agents/skills
-git clone --depth 1 --branch v1.0.1 https://github.com/robinber/agent-skills-rust.git .agents/skills/rust-strict
-rm -rf .agents/skills/rust-strict/.git
-```
-
-Prefer submodule or a release archive over a permanent vendored fork so
-improvements stay shared.
-
-### Wire `AGENTS.md`
+### Wire agent project files
 
 Add a load-order entry and the project delta. Start from
-[`templates/AGENTS.snippet.md`](templates/AGENTS.snippet.md).
+[`templates/AGENTS.snippet.md`](templates/AGENTS.snippet.md). Use `AGENTS.md`
+and/or `CLAUDE.md` depending on which file your tools load.
 
 ## Activation
 
@@ -103,7 +122,7 @@ manifests/workspaces, clippy/rustfmt/rustdoc/tests, API design, error handling,
 
 Frontmatter in `SKILL.md` provides the `name` and `description` used by skill
 discovery. Discovery only works if the skill is installed under a path the tool
-scans (see the matrix above).
+scans (see the matrix above) and the directory is named `rust-strict`.
 
 ## Skill toolchain floor
 
@@ -119,9 +138,8 @@ Unified from three project-local forks (`range-replay` as the robust base,
 plus portable rules from `moe-sim` and `kira`). Project-specific content was
 stripped so one skill can serve every Rust repository.
 
-v1.0.1 incorporates an independent Codex review (portability of install paths,
-verification baseline, deny checks, MSRV floors, doctests, secrets, Edition
-2024 unsafe).
+Reviews: independent Codex passes (v1.0.0 → v1.0.1) and Claude Code review
+(v1.0.2 install + portability fixes).
 
 ## Versioning
 
