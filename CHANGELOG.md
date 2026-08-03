@@ -27,6 +27,9 @@ Cross-review hardening (Codex technical axis, Grok operational axis):
   contradiction.
 - Add five adversarial behavior evals and validator contract-phrase checks so
   the new enforcement semantics cannot silently rot.
+- Align activation fixtures with additive routing (review, dependency, and
+  arithmetic scenarios load their new references) and validate every eval's
+  reference list against the decision table parsed from `SKILL.md`.
 
 Initial normative-semantics rework:
 

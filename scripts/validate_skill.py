@@ -412,6 +412,35 @@ def validate_command_fixtures() -> None:
         fail(f"documented command markers lack fixtures: {sorted(undocumented)}")
 
 
+def load_decision_table() -> dict[str, set[str]]:
+    """Map each task class to the unconditional references its table row mandates.
+
+    Only the clause before the first semicolon in the references cell is
+    unconditional; later clauses add conditional references.
+    """
+    table: dict[str, set[str]] = {}
+    in_table = False
+    for line in read(ROOT / "SKILL.md").splitlines():
+        if line.startswith("## Task decision table"):
+            in_table = True
+            continue
+        if in_table and line.startswith("## "):
+            break
+        if not in_table or not line.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        if len(cells) < 2 or cells[0].startswith("---") or cells[0] == "Task class":
+            continue
+        first_clause = cells[1].split(";", maxsplit=1)[0]
+        refs = set(re.findall(r"`([a-z0-9-]+\.md)`", first_clause))
+        if refs:
+            key = cells[0].replace("`", "").lower()
+            table[key] = {f"references/{ref}" for ref in refs}
+    if not table:
+        fail("SKILL.md: task decision table not found or empty")
+    return table
+
+
 def validate_reference_list(value: object, context: str) -> None:
     refs = sequence(value, context)
     for ref in refs:
@@ -419,10 +448,32 @@ def validate_reference_list(value: object, context: str) -> None:
             fail(f"{context}: invalid reference {ref!r}")
 
 
+def validate_mandatory_references(
+    task_class: object,
+    references: object,
+    decision_table: dict[str, set[str]],
+    context: str,
+) -> None:
+    if not isinstance(task_class, str):
+        return
+    mandatory = decision_table.get(task_class.lower())
+    if mandatory is None:
+        fail(f"{context}: task class {task_class!r} has no decision-table row")
+        return
+    listed = {ref for ref in sequence(references, context) if isinstance(ref, str)}
+    missing = mandatory - listed
+    if missing:
+        fail(
+            f"{context}: missing mandatory references for {task_class!r}: "
+            f"{sorted(missing)}"
+        )
+
+
 def validate_activation_evals() -> None:
     path = ROOT / "evals/activation.yaml"
     data = mapping(load_yaml(path), relative(path))
     scenarios = sequence(data.get("scenarios"), f"{relative(path)} scenarios")
+    decision_table = load_decision_table()
     seen: set[str] = set()
     for index, item in enumerate(scenarios):
         scenario = mapping(item, f"activation scenario {index}")
@@ -445,6 +496,12 @@ def validate_activation_evals() -> None:
             validate_reference_list(
                 expected.get("references"), f"activation scenario {scenario_id} references"
             )
+            validate_mandatory_references(
+                expected.get("task_class"),
+                expected.get("references"),
+                decision_table,
+                f"activation scenario {scenario_id}",
+            )
         elif not isinstance(expected.get("reason"), str):
             fail(f"activation scenario {scenario_id}: non-trigger case needs reason")
 
@@ -464,6 +521,7 @@ def validate_behavior_evals() -> None:
         "blocked",
     }
     allowed_states = {"COMPLETE", "COMPLETE WITH GAPS", "BLOCKED"}
+    decision_table = load_decision_table()
     seen: set[str] = set()
     for filename in (
         "policy-conflicts.yaml",
@@ -489,6 +547,12 @@ def validate_behavior_evals() -> None:
                 fail(f"behavior scenario {scenario_id}: missing classification")
             validate_reference_list(
                 expected.get("references"), f"behavior scenario {scenario_id} references"
+            )
+            validate_mandatory_references(
+                expected.get("classification"),
+                expected.get("references"),
+                decision_table,
+                f"behavior scenario {scenario_id}",
             )
             if expected.get("decision") not in allowed_decisions:
                 fail(f"behavior scenario {scenario_id}: invalid decision")

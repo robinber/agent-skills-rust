@@ -41,7 +41,7 @@ scenarios:
     prompt: "AGENTS.md forbids workspace --all-features because two features are mutually exclusive, while CI documentation requires a workspace all-features run for the release verdict."
     expected:
       classification: "release verification"
-      references: ["references/workflow.md", "references/testing.md"]
+      references: ["references/workflow.md", "references/testing.md", "references/dependencies-release.md"]
       decision: "blocked"
       completion_state: "BLOCKED"
       verification: ["Resolve applicability first; then quote both rules because they impose incompatible outcomes on the same release scope and stop the affected claim."]
