@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 — 2026-08-03
 
 - Define deterministic policy precedence, exact approval semantics, stop
   conditions, and mandatory `COMPLETE` / `COMPLETE WITH GAPS` / `BLOCKED`
