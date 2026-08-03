@@ -1,0 +1,30 @@
+schema_version: 1
+suite: behavior
+scenarios:
+  - id: public-api-semver-risk
+    prompt: "Add a required method to a public trait in a published library."
+    expected:
+      classification: "public API change"
+      references: ["references/api-design.md", "references/docs.md", "references/errors.md", "references/testing.md"]
+      decision: "request_explicit_approval"
+      completion_state: "BLOCKED"
+      verification: ["Review downstream implementations and run configured or practical semver checks."]
+      forbidden_claims: ["A source-compatible local build proves semver compatibility."]
+  - id: invariant-panic-input-error
+    prompt: "Use an approved invariant panic to handle malformed configuration input."
+    expected:
+      classification: "implementation"
+      references: ["references/workflow.md", "references/testing.md", "references/errors.md"]
+      decision: "blocked"
+      completion_state: "BLOCKED"
+      verification: ["Reject the invariant-panic exception because configuration is a recoverable boundary error."]
+      forbidden_claims: ["Operator approval overrides the panic contract."]
+  - id: async-cancellation-safety
+    prompt: "Change a spawned async worker that mutates state before an await and drains a bounded queue during shutdown."
+    expected:
+      classification: "async, locks, channels, atomics, or spawned tasks"
+      references: ["references/concurrency.md", "references/testing.md"]
+      decision: "continue"
+      completion_state: "COMPLETE"
+      verification: ["Exercise cancellation at the commit boundary, queue saturation, and shutdown with work in flight."]
+      forbidden_claims: ["A happy-path async test proves cancellation safety."]

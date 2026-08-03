@@ -1,0 +1,29 @@
+schema_version: 1
+suite: native-discovery
+harness: kira
+setup:
+  canonical_copy: "Create one temporary canonical rust-strict copy outside the repository under test."
+  codex_adapter: "Expose the canonical copy at .agents/skills/rust-strict."
+  claude_adapter: "Expose the same canonical copy at .claude/skills/rust-strict."
+  cleanup: "Remove both adapters and the temporary canonical copy after capture."
+expected_markers:
+  name: "rust-strict"
+  description_prefix: "Apply release-quality engineering discipline when modifying"
+  completion_states: ["COMPLETE", "COMPLETE WITH GAPS", "BLOCKED"]
+cases:
+  - id: codex-native-discovery
+    agent: "codex"
+    native_invocation: "$rust-strict"
+    required_adapter: ".agents/skills/rust-strict"
+    forbidden_fallback: "Opening the repository-root SKILL.md as an ordinary file after invocation failure."
+  - id: claude-native-discovery
+    agent: "claude"
+    native_invocation: "/rust-strict"
+    required_adapter: ".claude/skills/rust-strict"
+    forbidden_fallback: "Opening the repository-root SKILL.md as an ordinary file after invocation failure."
+  - id: grok-claude-compatibility
+    agent: "grok"
+    native_invocation: "/rust-strict"
+    required_adapter: ".claude/skills/rust-strict"
+    precondition: ".agents/skills/rust-strict and .grok/skills/rust-strict are absent."
+    forbidden_fallback: "Opening the repository-root SKILL.md as an ordinary file after invocation failure."

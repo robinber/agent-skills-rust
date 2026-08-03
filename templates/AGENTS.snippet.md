@@ -4,21 +4,20 @@ Copy and adapt the sections below into the consuming repository's `AGENTS.md`
 (or `CLAUDE.md`, whichever your tool loads as the project agent contract).
 Do **not** paste the full skill body here — only the project contract.
 
-Adjust the skill path for your primary agent tool (see the README install
-matrix): `.agents/skills/` (Codex), `.claude/skills/` (Claude Code),
-`.grok/skills/` (Grok). The install **directory name must be `rust-strict`**
-(matches the skill frontmatter `name`).
+Use the canonical `.agents/skills/rust-strict` checkout for Codex and a
+`.claude/skills/rust-strict` symlink for Claude Code; Grok can reuse the Claude
+path. The install directory name must be `rust-strict`.
 
 ---
 
 ## Load order
 
 1. This file — repository-wide agent rules and product constraints.
-2. [`README.md`](README.md) — product scope and non-goals (if present).
-3. [`.agents/skills/rust-strict/SKILL.md`](.agents/skills/rust-strict/SKILL.md)
+2. `README.md` — product scope and non-goals (if present).
+3. `.agents/skills/rust-strict/SKILL.md`
    — required before changing, reviewing, debugging, or claiming verification
-   for Rust or Cargo work. (Change this path if the skill is installed under
-   `.claude/skills` or `.grok/skills`.)
+   for Rust or Cargo work. Claude and Grok may load the equivalent
+   `.claude/skills/rust-strict/SKILL.md` symlink.
 4. Rust policy files: `Cargo.toml`, `rust-toolchain.toml`, `.cargo/config.toml`,
    `.rustfmt.toml` or `rustfmt.toml`, `clippy.toml`, and `deny.toml` when they
    exist.

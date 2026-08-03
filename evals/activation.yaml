@@ -1,0 +1,76 @@
+schema_version: 1
+suite: activation
+scenarios:
+  - id: review-rust-pr
+    prompt: "Review this Rust pull request for correctness and policy compliance."
+    should_trigger: true
+    expected:
+      task_class: "code review"
+      references: ["references/workflow.md"]
+  - id: add-cargo-feature
+    prompt: "Add a Cargo feature to this workspace and verify its feature rows."
+    should_trigger: true
+    expected:
+      task_class: "implementation"
+      references: ["references/workflow.md", "references/testing.md"]
+  - id: change-public-trait
+    prompt: "Change this crate's public trait and update downstream-facing docs."
+    should_trigger: true
+    expected:
+      task_class: "public API change"
+      references: ["references/api-design.md", "references/docs.md", "references/errors.md", "references/testing.md"]
+  - id: review-unsafe-ffi
+    prompt: "Review the unsafe FFI wrapper in this Cargo package."
+    should_trigger: true
+    expected:
+      task_class: "unsafe or FFI"
+      references: ["references/unsafe.md", "references/testing.md"]
+  - id: update-msrv
+    prompt: "Raise the declared MSRV and align this Rust repository's CI."
+    should_trigger: true
+    expected:
+      task_class: "lint, toolchain, or MSRV policy"
+      references: ["references/workflow.md", "references/lints.md"]
+  - id: modify-deny-policy
+    prompt: "Modify deny.toml for this workspace dependency change."
+    should_trigger: true
+    expected:
+      task_class: "dependency change"
+      references: ["references/workflow.md", "references/drift-control.md"]
+  - id: fix-overflow
+    prompt: "Fix this arithmetic overflow bug in the Rust parser."
+    should_trigger: true
+    expected:
+      task_class: "bug fix"
+      references: ["references/workflow.md", "references/testing.md"]
+  - id: review-doctest
+    prompt: "Review these Rust doctest changes and verify the public examples."
+    should_trigger: true
+    expected:
+      task_class: "documentation-only"
+      references: ["references/docs.md", "references/workflow.md"]
+  - id: explain-ownership
+    prompt: "Explain Rust ownership to a beginner with a small example."
+    should_trigger: false
+    expected:
+      reason: "General learning question without repository-backed work."
+  - id: translate-error
+    prompt: "Translate this Rust compiler error message into French."
+    should_trigger: false
+    expected:
+      reason: "Translation only."
+  - id: summarize-blog
+    prompt: "Summarize this blog post about the Rust borrow checker."
+    should_trigger: false
+    expected:
+      reason: "Summarization only."
+  - id: brainstorm-architecture
+    prompt: "Brainstorm a language-agnostic event-driven architecture."
+    should_trigger: false
+    expected:
+      reason: "No repository-backed Rust work."
+  - id: frontend-only-mixed-repo
+    prompt: "Edit only the CSS and React components in this mixed Rust/frontend repository."
+    should_trigger: false
+    expected:
+      reason: "The affected surface is not Rust or Cargo."

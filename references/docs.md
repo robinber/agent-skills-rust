@@ -17,11 +17,8 @@
 
 ## 2. Rustdoc and doctest gates
 
-When repository policy requires `RUSTDOCFLAGS="-D warnings"`, verify docs with:
-
-```bash
-RUSTDOCFLAGS="-D warnings" cargo doc -p <package> --no-deps <features-or-default>
-```
+When repository policy requires `RUSTDOCFLAGS="-D warnings"`, use the canonical
+scoped rustdoc command in `references/workflow.md`.
 
 In a workspace, use `--workspace` or package selection as appropriate. Under
 that flag:
@@ -33,11 +30,7 @@ that flag:
   package configuration.
 
 `cargo doc` does **not** run doctests. When runnable rustdoc examples change,
-also run:
-
-```bash
-cargo test -p <package> --doc <features-or-default>
-```
+also use the canonical scoped doctest command in `references/testing.md`.
 
 When public docs or rustdoc examples change, verify locally with both gates
 before finalizing (unless the repo documents a different split).

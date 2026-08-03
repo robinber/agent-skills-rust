@@ -52,6 +52,37 @@ Before exposing or changing a public item, confirm:
 | Stability | Would a private field or sealed trait preserve future flexibility? |
 | Examples | Would a short rustdoc example prevent the most likely misuse? |
 
+### Semver and compatibility
+
+For a published library or a reusable workspace crate, review compatibility as
+part of the public contract. Internal binaries may skip tooling that has no
+meaningful downstream consumer, but should still review caller impact.
+
+Check explicitly for:
+
+- removed or renamed public items, reduced visibility, and changed signatures;
+- public feature removal, renaming, default changes, or newly invalid feature
+  combinations;
+- trait method additions, object-safety changes, and downstream implementation
+  breakage;
+- changes to `Send`, `Sync`, `Unpin`, or other auto-trait behavior;
+- stronger generic/lifetime bounds or changed associated types;
+- variants added to publicly matchable error enums and other exhaustiveness
+  hazards;
+- dependency or API changes that raise the declared MSRV.
+
+Use the repository's compatibility job when configured. Otherwise consider
+[`cargo-semver-checks`](https://github.com/obi1kenobi/cargo-semver-checks) when
+practical:
+
+<!-- command-fixture: semver-check -->
+```bash
+cargo semver-checks --package <package>
+```
+
+An unavailable compatibility tool follows `references/workflow.md`; it does not
+turn a manual review into a machine-verified compatibility claim.
+
 ## 3. Skill policy
 
 - Make names read like Rust, not like a generic OO API.
@@ -69,6 +100,8 @@ Before exposing or changing a public item, confirm:
   public.
 - For secret-bearing types, implement redacted `Debug`/`Display` or omit them
   rather than deriving full dumps.
+- Preserve semver compatibility for published/reusable crates unless the exact
+  break has explicit approval under `SKILL.md`.
 
 ## 4. Allowed exceptions
 

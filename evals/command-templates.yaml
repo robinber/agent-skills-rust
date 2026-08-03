@@ -1,0 +1,41 @@
+schema_version: 1
+fixtures:
+  - id: fmt-check
+    sources: ["references/workflow.md"]
+    command: "cargo fmt --all --check"
+  - id: clippy-scoped
+    sources: ["references/workflow.md"]
+    command: "cargo clippy -p <package> <target-selection> <feature-selection> -- -D warnings"
+  - id: rustdoc-scoped
+    sources: ["references/workflow.md"]
+    command: "RUSTDOCFLAGS=\"-D warnings\" cargo doc -p <package> --no-deps <feature-selection>"
+  - id: cargo-deny
+    sources: ["references/workflow.md"]
+    command: "cargo deny check"
+  - id: cargo-metadata
+    sources: ["references/workflow.md"]
+    command: "cargo metadata --no-deps --format-version 1"
+  - id: msrv-check
+    sources: ["references/workflow.md"]
+    command: "cargo +<msrv> check -p <package> <target-selection> <feature-selection>"
+  - id: target-check
+    sources: ["references/workflow.md"]
+    command: "cargo check -p <package> --target <target-triple> <feature-selection>"
+  - id: test-target
+    sources: ["references/testing.md"]
+    command: "cargo test -p <package> <target-selection> <feature-selection>"
+  - id: test-filter
+    sources: ["references/testing.md"]
+    command: "cargo test -p <package> <target-selection> <feature-selection> <test-filter>"
+  - id: test-libtest-options
+    sources: ["references/testing.md"]
+    command: "cargo test -p <package> <target-selection> <feature-selection> <test-filter> -- <libtest-options>"
+  - id: test-doctest
+    sources: ["references/testing.md"]
+    command: "cargo test -p <package> --doc <feature-selection>"
+  - id: miri-test
+    sources: ["references/unsafe.md"]
+    command: "cargo +nightly miri test -p <package> <target-selection> <feature-selection> <test-filter>"
+  - id: semver-check
+    sources: ["references/api-design.md"]
+    command: "cargo semver-checks --package <package>"
