@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 — 2026-08-03
 
 Cross-review hardening (Codex technical axis, Grok operational axis):
 
