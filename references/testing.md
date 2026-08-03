@@ -26,13 +26,14 @@
 - Use integration tests for public APIs and end-to-end behavior inside a
   package.
 - Use doctests for user-facing examples and invariants that should stay visible
-  in docs.
+  in docs. When those examples change, run scoped `cargo test --doc` — `cargo
+  doc` alone does not execute them.
 - Prefer testing behavior through stable functions and modules, not through
   `main` or ad hoc process setup, unless the CLI boundary is the subject under
   test.
 - Prefer explicit commands such as
-  `cargo test -p <package> <test-filter> --all-features`; avoid saying "tests
-  pass" without package, target, feature, and doctest scope.
+  `cargo test -p <package> <test-filter> <features-or-default>`; avoid saying
+  "tests pass" without package, target, feature, and doctest scope.
 
 ### Fixtures and oracle style
 
@@ -60,6 +61,7 @@
 | `unsafe` or raw pointer logic that Miri supports | `cargo +nightly miri test` on the focused target |
 | Suspected weak assertions | mutation testing (`cargo mutants`) as an occasional audit, not a default gate |
 | Slow or flaky suite | nextest isolation and explicit timeouts |
+| MSRV-sensitive change | `cargo +<msrv> test` or the repo MSRV CI job |
 
 Do not add heavy testing infrastructure by default. Escalate when the risk of
 the touched surface justifies it.

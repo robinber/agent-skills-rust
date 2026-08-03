@@ -19,9 +19,21 @@
 - For fallible construction, prefer `try_new` / `build` / `TryFrom` over a
   fallible `new`.
 - Seal traits that are not meant for downstream implementation.
-- For public traits that need async behavior, prefer methods returning
-  `impl Future<Output = T> + Send` (or a concrete stream type) over public
-  `async fn`, so `Send` stays explicit at the boundary.
+
+### Async public traits
+
+Do not default to public `async fn` in traits without considering auto-traits
+and object safety. Choose deliberately:
+
+| Goal | Prefer |
+|---|---|
+| Multi-threaded executors | methods returning `impl Future<Output = T> + Send` (or equivalent) |
+| Single-threaded / thread-local / some embedded | intentionally `!Send` futures; document the executor assumption |
+| Both worlds | paired traits or `trait-variant`-style splits |
+| Dynamic dispatch | object-safe design with boxed/pinned futures as needed |
+
+Requiring `Send` forever is a public contract. Do not force it when the crate's
+executor model is single-threaded.
 
 ## 2. Review checklist
 
@@ -32,7 +44,7 @@ Before exposing or changing a public item, confirm:
 | Naming | Does it read like idiomatic Rust, with consistent word order? |
 | Meaning | Would a newtype or enum remove a class of misuse? |
 | Fallibility | Is failure visible in the type system when recoverable? |
-| Traits | Is `Debug` present? Are `Send`/`Sync` intentional where concurrency matters? |
+| Traits | Is `Debug` present (and secret-safe)? Are `Send`/`Sync` intentional? |
 | Errors | Is the error type meaningful, and are `Errors`/`Panics`/`Safety` documented? |
 | Surface | Is this the smallest public surface that still supports the use case? |
 | Stability | Would a private field or sealed trait preserve future flexibility? |
@@ -53,6 +65,8 @@ Before exposing or changing a public item, confirm:
 - In binaries and internal application crates, prefer `pub(crate)` unless the
   binary, integration tests, or a deliberate public surface needs the item
   public.
+- For secret-bearing types, implement redacted `Debug`/`Display` or omit them
+  rather than deriving full dumps.
 
 ## 4. Allowed exceptions
 

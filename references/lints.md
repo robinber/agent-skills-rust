@@ -20,14 +20,29 @@
   `clippy::blanket_clippy_restriction_lints`. Cherry-pick only.
 - `clippy::nursery` is experimental; cherry-pick only.
 
-## 2. Lint structure
+## 2. Toolchain floors (skill syntax)
+
+This skill's preferred suppression form uses features stabilized in recent
+Rust:
+
+| Construct | Approx. floor | Older MSRV fallback |
+|---|---|---|
+| `#[expect(...)]` and lint `reason = "..."` | Rust **1.81** | `#[allow(...)]` with a short adjacent comment |
+| `[workspace.lints]` respected by members | Cargo **1.74+** | package-level `[lints]` duplicated carefully, or upgrade Cargo |
+
+If the package MSRV is older than the skill floor, keep the same intent with
+syntax the MSRV compiler accepts. Do not introduce 1.81-only attributes into a
+crate that must build on older toolchains.
+
+## 3. Lint structure
 
 Layered architecture:
 
 - **Manifest-level** (`[lints]` or `[workspace.lints]`): source of truth for
   lint policy.
-- **Inheritance** (`[lints] workspace = true`): required for every new workspace
-  member unless an explicit exception is approved.
+- **Inheritance** (`[lints] workspace = true`): expected for every new workspace
+  member when the workspace defines `[workspace.lints]`, unless an explicit
+  exception is approved.
 - **Verification/CI-level** (`cargo clippy ... -- -D warnings`,
   `RUSTDOCFLAGS=-D warnings`): promotes warnings to hard failures in canonical
   verification and must be preserved by CI once it exists.
@@ -68,14 +83,12 @@ allow-panic-in-tests = true
 Do not claim tests are exempt without checking these knobs and the package lint
 table.
 
-## 3. Skill policy
+## 4. Skill policy
 
 - Default to Clippy's standard groups plus the repository's explicit denials
   unless the project already has a stricter, documented standard.
 - Tighten lint levels incrementally, one lint or one module at a time, based on
   real signal.
-- In workspaces, require `[lints] workspace = true` on every new member; absence
-  of lint inheritance is a blocker, not a style nit.
 - Prefer mechanical enforcement of hard rules stated in the skill (`panic`,
   `unwrap_used`, SAFETY comments) over review-only hope.
 - Treat lint changes as part of the maintenance contract: if a lint is raised to
@@ -84,7 +97,7 @@ table.
 - Do not weaken an existing repository lint floor without an explicit operator
   decision.
 
-## 4. Allowed exceptions
+## 5. Allowed exceptions
 
 - A global `pedantic` setting is acceptable as deliberate repository policy.
 - Global `nursery` or `restriction` groups are **not** acceptable. Cherry-pick

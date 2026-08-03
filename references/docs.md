@@ -15,24 +15,31 @@
 - Rustdoc tests compile the examples you show, so docs are part of the
   correctness surface, not just prose.
 
-## 2. Rustdoc gate
+## 2. Rustdoc and doctest gates
 
-When repository policy requires `RUSTDOCFLAGS="-D warnings"`, verify with:
+When repository policy requires `RUSTDOCFLAGS="-D warnings"`, verify docs with:
 
 ```bash
-RUSTDOCFLAGS="-D warnings" cargo doc --all-features --no-deps
+RUSTDOCFLAGS="-D warnings" cargo doc -p <package> --no-deps <features-or-default>
 ```
 
-In a workspace, add `--workspace` or package selection as appropriate. Once CI
-exists, it must preserve this gate. Under that flag:
+In a workspace, use `--workspace` or package selection as appropriate. Under
+that flag:
 
 - Broken intra-doc links are build failures.
 - Bare URLs and other rustdoc warnings are build failures.
 - Private intra-doc links are build failures when configured as warnings/denials
   in the package.
 
-When public docs or rustdoc examples change, verify locally with the
-documentation gate before finalizing.
+`cargo doc` does **not** run doctests. When runnable rustdoc examples change,
+also run:
+
+```bash
+cargo test -p <package> --doc <features-or-default>
+```
+
+When public docs or rustdoc examples change, verify locally with both gates
+before finalizing (unless the repo documents a different split).
 
 ## 3. Skill policy
 

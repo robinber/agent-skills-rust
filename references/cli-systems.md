@@ -25,8 +25,10 @@
 - Prefer stable, documented exit codes when the CLI is scripted or automated.
 - Do not force a full `tracing` stack into a tiny CLI; structured logging becomes
   valuable when the tool grows multi-step or long-running behavior.
-- Never put secrets on process argv or in default log output; prefer env files or
-  redacted structured fields when sensitive configuration must be handled.
+- Never put secrets on process argv. Prefer stdin, inherited descriptors, or a
+  platform secret store when practical. Env vars and config files are acceptable
+  only as a documented project mechanism with permissions, lifetime, and
+  redaction rules (do not log or `Debug`-dump their contents).
 
 ## 3. Allowed exceptions
 

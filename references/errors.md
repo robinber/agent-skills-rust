@@ -31,6 +31,7 @@
 - Map errors to actionable messages and stable exit codes at the CLI boundary.
 - Prefer typed variants over string-only `bail!` when callers or exit-code maps
   need to distinguish failures.
+- Do not include secrets in error `Display`/`Debug` output.
 
 ### Panic contract
 

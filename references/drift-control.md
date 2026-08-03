@@ -28,7 +28,11 @@ making it worse, or state the explicit trade-off.
 Project-specific pressure zones and critical surfaces belong in `AGENTS.md`.
 Use them when present; do not invent a permanent debt list inside this skill.
 
-## 2. Size and responsibility gates
+## 2. Default size and responsibility profile
+
+These numbers are the **skill default strict profile**. Override them only when
+`AGENTS.md` or the operator documents different thresholds (for example
+generated code, vendor trees, or intentionally large tables).
 
 | Condition | Required behavior |
 |---|---|
@@ -40,13 +44,15 @@ Use them when present; do not invent a permanent debt list inside this skill.
 Do not refactor unrelated code just to satisfy a number. The rule is about
 stopping additional drift on the surface you are already touching.
 
-## 3. API shape gates
+Correctness and safety invariants remain hard regardless of profile overrides.
 
-- Skill gate: a change must not push a function past **six** parameters without
-  a request, context, options, or builder type (unless a documented exception
-  already exists). That means the resulting arity after the change must be ≤ 6.
+## 3. API shape profile
+
+- Default: prefer not to push a function past **six** parameters without a
+  request, context, options, or builder type (unless a documented exception
+  already exists).
 - Clippy's `too-many-arguments-threshold` is a looser mechanical backstop, not a
-  license to ignore the skill gate.
+  license to ignore the default profile.
 - Avoid boolean parameters in public APIs unless the name at the call site is
   self-evident. Prefer a small enum for policy choices.
 - New public types must describe ownership, fallibility, and caller-visible
@@ -76,7 +82,8 @@ If `AGENTS.md` lists domain-specific duplication hotspots, search those first.
 New `#[allow]` / `#[expect]` attributes require:
 
 - the narrowest possible scope;
-- `reason = "..."` for non-test code;
+- a justification (`reason = "..."` on Rust 1.81+; otherwise an adjacent comment
+  on older MSRV);
 - no broad lint-group suppression unless the user approves it or a migration
   note already exists;
 - a cleanup path for temporary suppressions.
@@ -107,7 +114,7 @@ the narrowest command that still exercises the touched path.
 
 For non-trivial Rust changes, report:
 
-- files touched that were over 800 or 1,000 LOC;
+- files touched that were over 800 or 1,000 LOC (or the project override);
 - whether any active audit/debt finding was affected;
 - whether new duplication, parameters, or lint suppressions were introduced;
 - tests or verification commands run;

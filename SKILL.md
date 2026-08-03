@@ -16,6 +16,11 @@ This skill is **portable**. Repository policy files and `AGENTS.md` define the
 effective project contract; this skill defines how to discover, apply, and
 verify that contract without inventing policy from memory.
 
+**Skill floor:** full guidance assumes **Rust 1.81+** and a recent Cargo (for
+`#[expect]`, lint `reason = "..."`, and common workspace lint inheritance). On
+older MSRV, keep the same intent with syntax the toolchain accepts, and note the
+gap. See `references/lints.md`.
+
 ## Scope
 
 - Rust packages, workspaces, binaries, libraries, proc-macros, build scripts,
@@ -34,12 +39,15 @@ explicit:
    debugging, or claiming verification.
 2. Read the package or workspace policy files listed below, then identify the
    exact package, target, feature set, and boundary affected.
-3. State the effective toolchain. Prefer `rust-toolchain.toml` when present; use
-   `+nightly` only for commands that explicitly need it (for example rustfmt
-   options that require nightly).
-4. Classify the change as implementation, review, docs/rustdoc,
+3. State the effective toolchain from `rust-toolchain.toml` when present.
+   Otherwise use the active default toolchain. Use `+nightly` only when a
+   command explicitly requires it (for example unstable rustfmt options already
+   used by the repo).
+4. State MSRV from package or inherited `[workspace.package]` `rust-version`,
+   not from the toolchain file alone.
+5. Classify the change as implementation, review, docs/rustdoc,
    dependency/supply-chain, package/workspace policy, or release verification.
-5. Choose the narrowest verification command that can fail for the touched
+6. Choose the narrowest verification command that can fail for the touched
    behavior, and record what it does not cover.
 
 Do not start from memory or generic Rust habits when the repository policy files
@@ -51,13 +59,14 @@ Before acting, inspect the policy files that exist and define the effective
 contract:
 
 - `Cargo.toml` — package metadata and/or `[workspace.package]` /
-  `[workspace.lints]`, plus local `[lints]` tables.
+  `[workspace.lints]`, plus local `[lints]` tables. Edition and `rust-version`
+  (MSRV) live here (or via workspace package inheritance).
 - `rust-toolchain.toml` — pinned toolchain channel, required components, and
-  profile.
-- `.rustfmt.toml` — formatting baseline.
+  profile (what agents run by default — not a substitute for MSRV).
+- `.rustfmt.toml` — formatting baseline; note whether any option needs nightly.
 - `clippy.toml` — MSRV, doc-valid-idents, test-allow knobs, and thresholds.
 - `.cargo/config.toml` — cargo aliases when present.
-- `deny.toml` — dependency advisory, license, and source policy.
+- `deny.toml` — dependency advisory, license, bans, and source policy.
 - `.github/workflows/*` — CI gates when present. If absent, use `AGENTS.md` and
   local policy files as the canonical gates and do not claim CI coverage.
 - `justfile` / `Makefile` — optional convenience gates; they do not replace
@@ -69,8 +78,9 @@ Anchor on those files first, then before editing:
    members).
 2. Determine whether the change is public API, runtime behavior, tests/examples,
    or private glue.
-3. Confirm MSRV and toolchain constraints.
-4. Find the repo's lint baseline and verification commands.
+3. Confirm MSRV and toolchain constraints (they may differ).
+4. Find the repo's lint baseline, feature matrix, and verification commands
+   (including CI when present).
 5. Decide which verification command is the cheapest meaningful check.
 
 If the request is ambiguous, resolve it by reading the current code and
@@ -104,8 +114,9 @@ on memory.
 
 - Be strict on runtime code, public APIs, error semantics, docs, safety
   contracts, dependency changes, and final verification.
-- Treat `-D warnings`, rustdoc warnings, `cargo deny` (when configured), lint
-  policy inheritance, and no hidden panics in non-test code as the quality floor.
+- Treat `-D warnings`, rustdoc warnings, `cargo deny` (when configured), and no
+  hidden panics in non-test code as the quality floor unless the repo documents a
+  narrower policy.
 - Be pragmatic on tests, examples, benches, and private glue when extra ceremony
   would not improve signal.
 - Do not impose a generic Rust preference where the repository already has a
@@ -127,7 +138,7 @@ on memory.
 - Do not introduce multi-crate workspaces, plugins, or heavy frameworks without
   a demonstrated need.
 
-## Drift control gates
+## Drift control
 
 Rust work must leave the touched surface no worse than it was.
 
@@ -140,7 +151,8 @@ Before editing non-trivial runtime code:
    for the touched scope, read only the relevant findings and do not expand
    known debt without an explicit reason.
 
-Hard gates:
+**Default drift profile** (use these unless `AGENTS.md` or the operator sets
+different numbers or opt-outs):
 
 - Do not grow a file already over 1,000 lines for feature work unless the change
   is a minimal bug fix, test-only addition, or an approved transitional step.
@@ -148,49 +160,71 @@ Hard gates:
   responsibility.
 - Treat files over 800 lines as pressure zones: keep additions narrow, avoid new
   responsibilities, and prefer moving cohesive helpers into focused modules.
-- A change must not push a function past **six** parameters without introducing
-  a request, context, or options type (unless a documented exception already
-  exists). The Clippy `too-many-arguments` threshold is a looser mechanical
-  backstop, not the skill gate.
+- Prefer not to push a function past **six** parameters without a request,
+  context, or options type. Clippy's `too-many-arguments` threshold is a looser
+  mechanical backstop, not a license to ignore this default.
 - Do not add a third copy of parsing, formatting, validation, config, path,
-  timestamp, retry, or error-mapping logic. Extract a shared helper or justify
-  why the behaviors must diverge.
+  timestamp, retry, or error-mapping logic without extracting a helper or
+  justifying divergence.
 - Do not add broad `#[allow]` / `#[expect]` attributes. Every new allowance
-  needs the smallest scope, `reason = "..."`, and a cleanup path if temporary.
+  needs the smallest scope, a justification (`reason = "..."` on Rust 1.81+),
+  and a cleanup path if temporary.
 - If touching untested critical logic, add a focused test or state why the gap
   remains and which command gives the best available coverage.
 
+Correctness and safety invariants (no silent UB, no secret leakage, no fake
+verification) are always hard. Numeric debt thresholds are **defaults of this
+strict profile**, not a claim that every greenfield or generated tree must adopt
+them unchanged. Document overrides in `AGENTS.md`.
+
 Project-specific pressure zones, critical surfaces, and domain duplication lists
-belong in `AGENTS.md`, not in this skill. Load `references/drift-control.md`
-when a task touches large files, active audit findings, duplicated logic, broad
-suppressions, public APIs, command dispatch, runtime orchestration, config
-resolution, or test gaps.
+belong in `AGENTS.md`. Load `references/drift-control.md` when needed.
 
 ## Verification policy
 
 Default verification is impact-scoped. Use the narrowest command that can fail
 for the change, then widen only when the touched surface justifies it.
 
-Full static baseline (adapt `--workspace` only when a workspace exists):
+**Derive** package selection, features, and targets from the repo — do not assume
+`--workspace`, `--all-features`, or `+nightly`.
+
+### Full static baseline (template)
+
+Adapt each line to the anchored contract:
 
 ```bash
-cargo +nightly fmt --all --check
-cargo clippy --all-targets --all-features -- -D warnings
-RUSTDOCFLAGS="-D warnings" cargo doc --all-features --no-deps
-cargo deny check advisories licenses sources
+# fmt: use the repo toolchain; add +nightly only if .rustfmt.toml / AGENTS require it
+cargo fmt --all --check
+
+# clippy: package or workspace as appropriate; feature set from CI/AGENTS/default
+cargo clippy -p <package> --all-targets -- <features-or-default> -- -D warnings
+
+# docs
+RUSTDOCFLAGS="-D warnings" cargo doc -p <package> --no-deps <features-or-default>
+
+# supply chain (only if deny.toml exists): run all configured checks
+cargo deny check
 ```
 
-In a workspace, prefer the package-scoped form during iteration and the
-workspace form for shared policy, cross-package, or release verification. Prefer
-explicit `-p <package>` when focusing.
+In a workspace, prefer package scope during iteration and workspace scope for
+shared policy, cross-package, or release verification. Prefer explicit
+`-p <package>` when focusing.
 
 | Change type | Prefer |
 |---|---|
-| Logic / API | `cargo clippy` (scoped) + focused `cargo test` |
-| Formatting only | `cargo +nightly fmt --all --check` |
-| Public docs / rustdoc examples | `RUSTDOCFLAGS="-D warnings" cargo doc …` |
-| Deps / `deny.toml` | `cargo deny check advisories licenses sources` |
-| Cross-cutting runtime / shared contract | package or workspace test suite as needed |
+| Logic / API | scoped `cargo clippy` + focused `cargo test` |
+| Formatting only | `cargo fmt --all --check` (+nightly only if required) |
+| Public docs | `RUSTDOCFLAGS="-D warnings" cargo doc …` |
+| Runnable rustdoc examples | also `cargo test --doc` (scoped) |
+| Deps / `deny.toml` | `cargo deny check` |
+| MSRV-sensitive API | `cargo +<msrv> check` (or the repo's MSRV job) when MSRV is declared |
+| Cross-cutting runtime | package or workspace tests as needed |
+
+**Features:** default to the package default feature set unless CI, `AGENTS.md`,
+or the change itself requires another row (`--all-features`,
+`--no-default-features`, or an explicit `--features` list). Never treat
+`--all-features` as universal truth when features are mutually exclusive or
+platform-specific.
 
 Tests remain impact-scoped for lint, documentation, and policy-only changes. For
 a behavior change claimed complete, run tests that exercise the touched
@@ -200,10 +234,12 @@ a cross-cutting contract cannot be covered narrowly.
 Rules:
 
 - Only claim a command passed if you ran it and checked the output.
-- Report exact package, target, feature set, and intentional gaps.
+- Report exact package, target, feature set, toolchain override (if any), and
+  intentional gaps.
 - Do not treat a narrow filter as full suite proof.
 - If no `deny.toml` exists, skip `cargo deny` and note the gap.
 - If no CI workflows exist, do not claim CI coverage.
+- Add `--locked` only when a committed lockfile exists and policy expects it.
 
 ## Lint policy
 
@@ -213,20 +249,21 @@ in `clippy.toml` when present.
 
 - Treat `cargo clippy ... -- -D warnings`, rustdoc `-D warnings`, and the
   repository's explicit lint denials as the safe strict baseline.
-- Every new workspace member must inherit workspace lints with
-  `[lints] workspace = true` unless the operator approves a package-local
+- In workspaces that use `[workspace.lints]`, every new member should inherit
+  with `[lints] workspace = true` unless the operator approves a package-local
   exception.
 - Prefer enabling `clippy::pedantic` deliberately when the repo chooses it. Do
-  **not** enable `clippy::nursery` or `clippy::restriction` as a group (they
-  contain mutually exclusive or unstable lints). Cherry-pick individual
-  nursery/restriction lints only after measuring signal.
+  **not** enable `clippy::nursery` or `clippy::restriction` as a group. Cherry-pick
+  individual nursery/restriction lints only after measuring signal.
 - Prefer mechanical enforcement of stated hard rules when Clippy has a lint for
   them (for example `unwrap_used`, `expect_used`, `panic`,
   `undocumented_unsafe_blocks`, `multiple_unsafe_ops_per_block`).
 - Fix the root cause of a lint instead of suppressing it unless the suppression
   is narrowly justified and documented.
 - Avoid broad `allow` / `expect` attributes. New non-test suppressions need the
-  smallest scope, `reason = "..."`, and a cleanup path if temporary.
+  smallest scope, a justification, and a cleanup path if temporary. On Rust
+  1.81+, prefer `reason = "..."`; on older MSRV, use the best local comment form
+  the toolchain allows.
 
 Lint ratchet: tighten deliberately. Enforce new lint policy in runtime code
 first, then widen when the signal is understood. Do not weaken an existing
@@ -237,7 +274,9 @@ repository lint floor without an explicit operator decision.
 Repository-specific deviations from this shared baseline must be explicit and
 documented (usually in `AGENTS.md` or the manifests themselves). When a
 deviation exists, justify the reason and whether it is temporary or permanent.
-Deviations not documented are not permitted by omission.
+Undocumented silent weakening of correctness, safety, or verification is not
+allowed. Documented product-specific overrides of the default drift profile are
+expected and fine.
 
 ## Public API rules
 
@@ -249,14 +288,19 @@ Deviations not documented are not permitted by omission.
 - Avoid leaking implementation details through public signatures.
 - Prefer newtypes and enums over ambiguous `bool` or magic integers at public
   boundaries.
-- Implement `Debug` on public types; implement common traits when they are
-  semantically correct.
+- Implement `Debug` on public types when it does not leak secrets; for
+  secret-bearing types use redacted `Debug`/`Display` or omit them intentionally.
+  Implement other common traits when they are semantically correct.
 - If a change alters a public contract, update the docs and tests that describe
   that contract.
 
-For public traits in libraries, do not default to public `async fn`. Prefer
-`impl Future<Output = T> + Send` (or a concrete stream type) so `Send` stays
-explicit. Use object-safe traits only when dynamic dispatch is genuinely needed.
+For public traits that need async behavior, do not default to public `async fn`
+without considering auto-trait and dyn implications. Choose among:
+
+- `impl Future<Output = T> + Send` when multi-threaded executors are the contract,
+- an intentionally `!Send` future when single-threaded/local use is the design,
+- paired traits / `trait-variant`-style splits when both are needed,
+- object-safe / boxed futures only when dynamic dispatch is required.
 
 ## Ownership and borrowing
 
@@ -309,10 +353,12 @@ slice.
 - Every `unsafe` block needs a `// SAFETY:` comment stating the invariants that
   make it sound.
 - Document safety preconditions on `unsafe fn` with a `# Safety` rustdoc
-  section.
+  section. Document `unsafe impl` obligations the same way.
 - Prefer safe encapsulation so callers cannot violate invariants.
 - Prefer lints that enforce this contract when available
   (`undocumented_unsafe_blocks`, `multiple_unsafe_ops_per_block`).
+- On Edition 2024+, respect `unsafe_op_in_unsafe_fn`, `unsafe extern`, and
+  `#[unsafe(...)]` attribute requirements; see `references/unsafe.md`.
 - When `unsafe` changes, run the strongest practical checks: focused tests; Miri
   when the code is Miri-compatible; otherwise sanitizers / careful review for
   syscall or device I/O paths.
@@ -327,6 +373,8 @@ slice.
 - Include examples when they clarify usage or edge cases.
 - Add `Errors`, `Panics`, and `Safety` sections when relevant.
 - Keep examples compilable and aligned with the current API.
+- When runnable rustdoc examples change, run scoped `cargo test --doc` in
+  addition to `cargo doc`.
 
 ## Runtime architecture rules
 
@@ -349,7 +397,7 @@ slice.
 - Do not introduce an async runtime into a synchronous CLI or library without a
   demonstrated need.
 
-## Logging and observability
+## Logging, secrets, and observability
 
 - Prefer `tracing` with structured fields for long-running or multi-step
   runtimes.
@@ -357,7 +405,10 @@ slice.
   output) are acceptable; do not force a tracing stack without need.
 - Prefer structured fields over interpolated strings when using `tracing`.
 - Never log secrets, raw tokens, or full unredacted configs. Redact sensitive
-  env values and credentials at the log boundary.
+  values at log, error, panic, and debug boundaries.
+- Do not put secrets on process argv. Prefer stdin, inherited descriptors, or a
+  platform secret store when practical; env vars and files are project-specific
+  mechanisms that need permissions, lifetime, and redaction discipline.
 
 ## Tests, examples, and private glue
 
@@ -376,10 +427,10 @@ slice.
 - Confirm feature flags, default features, and workspace member selection when
   they affect the result.
 - Watch for edition differences, MSRV-sensitive APIs, and `no_std` or `alloc`
-  boundaries.
+  boundaries (`--no-default-features` / target triple as needed).
 - Check doctests when public examples are added or changed.
 - Check proc-macro and build-script behavior separately from the main library or
-  binary when needed.
+  binary when needed (host execution, env access, determinism, `rerun-if-*`).
 
 ## Dependency rules
 
@@ -391,9 +442,9 @@ slice.
 - Avoid wildcard versions, unreviewed git dependencies, unnecessary default
   features, and broad feature enables.
 - Do not relax `deny.toml` policy without an explicit rationale.
-- Run `cargo deny check advisories licenses sources` after dependency or
-  dependency-policy changes; include `bans` when version duplication or
-  wildcards matter.
+- After dependency or dependency-policy changes, run `cargo deny check` so every
+  configured check (including bans) runs. Do not pass a partial check list that
+  silently skips configured policy.
 - Escalate to stronger supply-chain tools (`cargo-vet`, audit notes, SBOM) only
   when the project opts in or the risk justifies it.
 
@@ -406,10 +457,10 @@ Before considering a Rust change complete, confirm:
 - Is the new code free of hidden panics and silent truncation?
 - Are errors typed and contextual?
 - If `unsafe` changed, are `SAFETY` comments and tests adequate?
-- Are logs or CLI messages secret-safe?
-- For workspaces, does every new package inherit lint policy?
-- Is the verification evidence exact about package, target, feature set, and
-  gaps?
+- Are logs, Debug/Display, and CLI messages secret-safe?
+- For workspaces using workspace lints, does every new package inherit policy?
+- Is the verification evidence exact about package, target, feature set,
+  toolchain, and gaps?
 - Is the touched surface no worse for size, duplication, and suppressions?
 
 ## Reference files
@@ -421,7 +472,7 @@ reference by default.
 |---|---|
 | verification scoping, manifests, CI alignment | `references/workflow.md` |
 | unit/integration/doctest, fixtures, property tests | `references/testing.md` |
-| Clippy groups, suppressions, lint ratchet | `references/lints.md` |
+| Clippy groups, suppressions, lint ratchet, MSRV floors | `references/lints.md` |
 | rustdoc gates and public examples | `references/docs.md` |
 | public API shape, constructors, naming checklist | `references/api-design.md` |
 | recoverable errors, panic boundaries, construction | `references/errors.md` |
@@ -429,5 +480,5 @@ reference by default.
 | thin `main`, exit codes, stdout/stderr | `references/cli-systems.md` |
 | large files, duplication, debt-sensitive surfaces | `references/drift-control.md` |
 
-Keep this file short. Put deep, stable reference material in the files above
-rather than expanding this skill body.
+Keep detailed, stable material in the files above. Prefer loading a reference
+over expanding this skill body for edge cases.
