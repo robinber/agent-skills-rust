@@ -36,7 +36,7 @@ generated code, vendor trees, or intentionally large tables).
 
 | Condition | Required behavior |
 |---|---|
-| File > 1,000 LOC | Bugfix/test-only additions may be minimal. Feature work should extract or split before adding another responsibility. |
+| File > 1,000 LOC | Bugfix/test-only additions may be minimal. For feature work, assess whether the addition is a genuinely new responsibility; place it in a focused module, or extract first only when the extraction is local, behavior-preserving, and reduces the risk of the requested change. Otherwise keep the patch narrow and report the pressure zone. |
 | File > 800 LOC | Treat as a pressure zone. Keep additions narrow and prefer focused helper modules. |
 | Function > 80 LOC or deeply nested | Do not add another branch without first considering extraction. |
 | Module owns unrelated responsibilities | New behavior should land in the narrower responsibility, not the broad module. |
@@ -72,8 +72,11 @@ Search before adding logic for repeated concerns such as:
 - path, timestamp, retry, and configuration resolution;
 - adapter or backend request/response mapping.
 
-Two copies can be transitional. A third copy is a design decision and needs a
-shared helper or an explicit divergence reason.
+Two copies can be transitional. A third copy is a design decision: abstract
+duplicated domain knowledge or a genuinely shared invariant into a helper, or
+state the explicit divergence reason. Similar-looking code that evolves for
+different reasons may stay separate; syntactic resemblance alone does not
+require an abstraction.
 
 If `AGENTS.md` lists domain-specific duplication hotspots, search those first.
 

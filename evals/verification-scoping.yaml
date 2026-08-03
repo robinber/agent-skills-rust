@@ -37,3 +37,12 @@ scenarios:
       completion_state: "COMPLETE"
       verification: ["Widen to the shared package and affected downstream behavior before claiming completion."]
       forbidden_claims: ["The filtered test is full-suite proof."]
+  - id: unrelated-preexisting-failure
+    prompt: "The scoped gate for the changed package passes, but a workspace test in an untouched package already fails on the pre-change baseline."
+    expected:
+      classification: "implementation"
+      references: ["references/workflow.md", "references/testing.md"]
+      decision: "continue_and_report"
+      completion_state: "COMPLETE"
+      verification: ["Confirm the failure exists on the pre-change baseline, classify it as unrelated pre-existing, keep the scoped claim, and report it with evidence."]
+      forbidden_claims: ["The workspace gate passed.", "The unrelated failure must be repaired before completion."]

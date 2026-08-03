@@ -38,11 +38,20 @@ scenarios:
       verification: ["Show why safe alternatives are inadequate before requesting approval."]
       forbidden_claims: ["Technical necessity alone is approval."]
   - id: ci-docs-conflict
-    prompt: "AGENTS.md documents impact-scoped tests, while CI documentation claims every change requires workspace all-features tests."
+    prompt: "AGENTS.md forbids workspace --all-features because two features are mutually exclusive, while CI documentation requires a workspace all-features run for the release verdict."
     expected:
       classification: "release verification"
       references: ["references/workflow.md", "references/testing.md"]
       decision: "blocked"
       completion_state: "BLOCKED"
-      verification: ["Quote both same-level repository rules and stop the affected verification claim."]
-      forbidden_claims: ["Choose whichever gate is cheaper."]
+      verification: ["Resolve applicability first; then quote both rules because they impose incompatible outcomes on the same release scope and stop the affected claim."]
+      forbidden_claims: ["Choose whichever gate is cheaper.", "The rules are complementary and can both be satisfied."]
+  - id: complementary-gates-cumulative
+    prompt: "A package-level AGENTS.md adds a stricter rustdoc gate on top of the workspace AGENTS.md test policy for changes inside that package."
+    expected:
+      classification: "implementation"
+      references: ["references/workflow.md", "references/testing.md"]
+      decision: "continue"
+      completion_state: "COMPLETE"
+      verification: ["Treat the nearer path-scoped rule and the broader workspace rule as cumulative and run both gates for the affected package."]
+      forbidden_claims: ["The package-scoped gate conflicts with workspace policy.", "Only the cheaper gate applies."]

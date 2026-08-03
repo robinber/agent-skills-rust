@@ -28,3 +28,21 @@ scenarios:
       completion_state: "COMPLETE"
       verification: ["Exercise cancellation at the commit boundary, queue saturation, and shutdown with work in flight."]
       forbidden_claims: ["A happy-path async test proves cancellation safety."]
+  - id: task-scoped-unsafe-approval
+    prompt: "The operator explicitly asks to implement a binding over a named C library in a crate whose policy allows unsafe."
+    expected:
+      classification: "unsafe or FFI"
+      references: ["references/unsafe.md", "references/testing.md"]
+      decision: "continue_and_report"
+      completion_state: "COMPLETE"
+      verification: ["Treat the named FFI task as approval for that exact surface and apply the full safety-proof, documentation, and testing rules without expanding the unsafe boundary beyond it."]
+      forbidden_claims: ["Task approval waives SAFETY comments, # Safety docs, or Miri/fallback evidence.", "The approval extends to unsafe outside the named surface."]
+  - id: invariant-panic-programmer-bug
+    prompt: "Add an internal assertion for an invariant that only a programmer bug can violate, in a crate whose lint policy permits panics and whose callers never observe the panic contract."
+    expected:
+      classification: "implementation"
+      references: ["references/workflow.md", "references/testing.md", "references/errors.md"]
+      decision: "continue_and_report"
+      completion_state: "COMPLETE"
+      verification: ["Confirm every panic-contract condition locally, name the violated invariant in the panic message, and report the exception."]
+      forbidden_claims: ["Separate operator approval is required for a policy-permitted internal invariant panic.", "Wrapping the bug in an artificial Result is mandatory."]

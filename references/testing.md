@@ -71,6 +71,10 @@ properties with fixed regressions for known edge cases.
 | Surface | Useful escalation |
 |---|---|
 | Parsing, round trips, coalescing, arithmetic | Table-driven tests, then property tests |
+| Parsers of untrusted input or binary formats | Property tests, then targeted fuzzing when risk warrants |
+| Proc macros, type-state APIs, complex bounds | Compile-pass and compile-fail tests (for example `trybuild`) with reviewed diagnostics |
+| Stable textual output or serialized formats | Golden/snapshot tests with explicit review of changes |
+| Performance claims | Before/after benchmark in a relevant profile; do not claim unmeasured speedups |
 | Unsafe memory behavior | Focused safe-API tests and Miri when compatible |
 | Concurrency/cancellation | Deterministic coordination, model testing where practical; see `references/concurrency.md` |
 | Weak assertions suspected | Mutation testing as an occasional audit |

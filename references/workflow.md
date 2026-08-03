@@ -20,9 +20,12 @@ Do not infer nightly, workspace-wide scope, or `--all-features`. Cargo aliases
 and task runners are conveniences; report the underlying command when they
 matter to the evidence.
 
-If repository sources at this level disagree, stop the affected verification
-or policy change. For example, CI and `AGENTS.md` disagreement is a policy
-conflict, not permission to select the cheaper gate.
+If repository sources at this level appear to disagree, resolve by
+applicability and specificity per `SKILL.md` before treating it as a conflict:
+complementary gates are cumulative, and the nearest path-scoped rule governs
+its scope. A genuine conflict — incompatible outcomes for the same scope and
+concern — stops the affected verification or policy change; never select the
+cheaper gate merely because it permits more progress.
 
 ## 2. Canonical command shapes
 
@@ -126,6 +129,17 @@ runtime behavior on the target.
 
 ## 6. Unavailable tools and gates
 
+A gate is **required** only when at least one of these holds:
+
+1. the repository contract explicitly declares it required;
+2. the operator explicitly requires its evidence;
+3. the requested outcome is itself a verification or release verdict that
+   cannot be truthfully established without that gate;
+4. the change affects a supported row that no narrower evidence can exercise.
+
+Everything else this skill recommends is recommended evidence, not a required
+gate. Do not invent additional blocking conditions.
+
 Classify a missing or unusable command before selecting the final state:
 
 1. Record the exact attempted command and diagnostic.
@@ -140,8 +154,25 @@ Classify a missing or unusable command before selecting the final state:
 | Optional tool unavailable, fallback covers the requested claim | May remain `COMPLETE`; report the optional omission when relevant |
 | Relevant check unavailable, work otherwise done, outcome does not require that proof | `COMPLETE WITH GAPS` |
 | Required gate unavailable for implementation handoff but existing CI is the authoritative pending runner | At best `COMPLETE WITH GAPS`; never claim the gate passed |
-| Required gate fails | `BLOCKED` until fixed or an exact scoped policy decision changes the contract |
+| Required gate fails with an introduced or affected failure | `BLOCKED` until fixed or an exact scoped policy decision changes the contract |
 | Release/verification task requires an unavailable row | `BLOCKED` |
+
+### Failure classification
+
+Classify every observed failure before selecting a state:
+
+- **introduced** — caused by the change. In a required scoped gate: `BLOCKED`.
+- **affected pre-existing** — predates the change but involves the changed
+  surface. `BLOCKED` for the affected claim until understood.
+- **unrelated pre-existing** — predates the change and does not involve the
+  changed surface. Do not repair it out of scope merely to obtain a green
+  global command, and never claim the global gate passed. Report it with
+  evidence and keep the scoped claim.
+- **indeterminate** — no reliable baseline distinguishes the cases. Build a
+  narrower reproducer or report the gap.
+
+Establish the baseline cheaply when possible: run the failing command on the
+pre-change tree or consult CI history before classifying.
 
 This applies to Miri, sanitizers, `cargo deny`, `cargo semver-checks`, target
 toolchains, external services, and machine-specific harnesses. Absence of an
@@ -160,3 +191,16 @@ Escalate only when evidence requires it:
 Widen immediately when repository policy mandates a broader gate, a public
 contract crosses packages, shared build policy changes, or narrow checks cannot
 exercise the claimed behavior.
+
+## 8. Final diff audit
+
+Before selecting a completion state for any change:
+
+1. Inspect the complete diff and changed-file list; confirm every changed file
+   belongs to the requested or necessary scope.
+2. Inspect manifest, feature, lockfile, visibility, public-API,
+   lint-suppression, generated-file, and dependency deltas.
+3. Check for debug output, secrets, placeholder code, stale comments,
+   accidental formatting churn, and unrelated refactors.
+4. Confirm the final report describes the final diff, not an earlier
+   intermediate state.

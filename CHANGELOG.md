@@ -2,6 +2,41 @@
 
 ## Unreleased
 
+- Add explicit HARD / DEFAULT / ADVISORY normative levels and forbid promoting
+  defaults into hard gates.
+- Make task classification additive across decision-table rows.
+- Resolve same-level policy disagreements by applicability and specificity;
+  block only on genuinely incompatible outcomes for the same scope.
+- Define objectively when a gate is required and classify observed failures as
+  introduced, affected pre-existing, unrelated pre-existing, or indeterminate.
+- Add a mandatory final diff audit and a per-command verification schema with a
+  baseline-failures section.
+- Rework the panic contract semantically: recoverable boundary conditions never
+  panic, policy-permitted internal invariant panics need no separate approval,
+  and the implicit panic surface (indexing, arithmetic, borrows) is audited.
+- Scope unsafe approval: a task naming an FFI/unsafe surface counts as approval
+  for that exact surface; add an FFI ABI/ownership contract checklist.
+- Correct the atomic-ordering rule (no default ordering; justify success and
+  failure orderings separately) and clarify that async-aware lock guards may
+  cross `.await`.
+- Separate the Rust 1.81 suppression-syntax floor from the Cargo 1.74 manifest
+  lint-table floor in `SKILL.md`.
+- Preserve deliberate repository lint-group policy instead of declaring it
+  unacceptable; forbid only newly enabling whole `nursery`/`restriction`.
+- Make `thiserror` conditional on repository convention and unify the
+  fallibility-naming rule with idiomatic constructor names.
+- Extend the semver checklist (`#[non_exhaustive]`, `repr`, re-exported
+  dependency types, macros) and defer to the Cargo SemVer chapter as
+  authoritative.
+- Add `references/review.md` (finding standard, review passes, output order),
+  `references/correctness-safety.md` (arithmetic, conversions, untrusted
+  input, resource bounds), and `references/dependencies-release.md`
+  (dependency hygiene, publication verification).
+- Extend `references/cli-systems.md` with filesystem and child-process I/O
+  rules and `references/testing.md` with compile-fail, snapshot, benchmark,
+  and fuzzing escalation rows.
+- Turn size thresholds into analysis triggers, distinguish knowledge from
+  syntactic duplication, and add an anti-overengineering policy.
 - Accept standard source-checkout directory names while keeping the
   `rust-strict` install-directory contract in discovery validation.
 - Allow a release version to be prepared before its matching Git tag exists;

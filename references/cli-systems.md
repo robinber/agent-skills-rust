@@ -30,7 +30,27 @@
   only as a documented project mechanism with permissions, lifetime, and
   redaction rules (do not log or `Debug`-dump their contents).
 
-## 3. Allowed exceptions
+## 3. Filesystem and child-process I/O
+
+- Handle partial reads and writes: use `read_exact`/`write_all` or loop until
+  complete. Treat `flush` as distinct from durability; use `sync_all` or
+  `sync_data` when the contract requires data on disk.
+- Replace files atomically (write a temporary file in the same directory, then
+  rename) when readers may observe the path mid-write; set restrictive
+  permissions before writing sensitive content.
+- Clean up temporary files and partial state on error paths.
+- Accept externally supplied paths as `OsStr`/`Path`; do not assume UTF-8.
+- Handle `BrokenPipe` on stdout gracefully when output may be piped; a closed
+  pager is not a crash.
+- Build child-process argv directly; never route interpolated input through a
+  shell.
+- Consume child `stdout`/`stderr` concurrently or with bounded buffers to avoid
+  pipe deadlock; always `wait` on children and define kill/timeout behavior so
+  no child outlives its owner unintentionally.
+- Define signal and shutdown behavior for long-running processes: which cleanup
+  runs and which exit code results.
+
+## 4. Allowed exceptions
 
 - A tiny one-off binary may keep logic in `main` if there is no realistic reuse
   or testability benefit.

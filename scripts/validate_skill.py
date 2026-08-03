@@ -26,14 +26,17 @@ MAX_SKILL_LINES = 350
 EXPECTED_NAME = "rust-strict"
 REQUIRED_REFERENCES = {
     "references/workflow.md",
+    "references/review.md",
     "references/testing.md",
     "references/lints.md",
     "references/docs.md",
     "references/api-design.md",
     "references/errors.md",
+    "references/correctness-safety.md",
     "references/unsafe.md",
     "references/concurrency.md",
     "references/cli-systems.md",
+    "references/dependencies-release.md",
     "references/drift-control.md",
 }
 REQUIRED_ACTIVATION_IDS = {
@@ -64,6 +67,10 @@ REQUIRED_BEHAVIOR_IDS = {
     "public-api-semver-risk",
     "invariant-panic-input-error",
     "async-cancellation-safety",
+    "complementary-gates-cumulative",
+    "unrelated-preexisting-failure",
+    "task-scoped-unsafe-approval",
+    "invariant-panic-programmer-bug",
 }
 REQUIRED_COMMAND_IDS = {
     "fmt-check",
@@ -553,11 +560,12 @@ def validate_policy_ownership() -> None:
 
     errors_reference = markdown.get("references/errors.md", "")
     required_panic_terms = (
-        "repository policy permits it",
-        "operator explicitly approves this exact exception",
+        "repository lint and panic policy permits it",
         "programmer bug",
         "public panic surface is documented with `# Panics`",
         "mechanically scoped",
+        "broadens a caller-visible panic contract",
+        "never control flow",
     )
     for term in required_panic_terms:
         if term not in errors_reference:
