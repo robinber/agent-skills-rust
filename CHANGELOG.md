@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.0 — 2026-08-04
+
+- Add a routed ownership and RAII reference covering when scope-bound cleanup
+  fits, exactly-once guard ownership, skipped destructors, and the limits of
+  `Drop`.
+- Require explicit fallible finalization for observable errors, explicit async
+  shutdown, and explicit business commits, with RAII limited to safe fallback
+  cleanup.
+- Add activation and adversarial behavior evals for infallible guards,
+  fallible finalization, commit/rollback, and async shutdown, plus validator
+  contract checks that keep the lifecycle rules discoverable.
+
 ## 1.2.0 — 2026-08-03
 
 Cross-review hardening (Codex technical axis, Grok operational axis):

@@ -43,6 +43,12 @@ scenarios:
     expected:
       task_class: "bug fix"
       references: ["references/workflow.md", "references/testing.md", "references/correctness-safety.md"]
+  - id: add-raii-guard
+    prompt: "Add a Rust guard that returns a capacity reservation when it is dropped, including on early return."
+    should_trigger: true
+    expected:
+      task_class: "resource ownership, guards, RAII, or Drop"
+      references: ["references/workflow.md", "references/ownership-raii.md", "references/testing.md"]
   - id: review-doctest
     prompt: "Review these Rust doctest changes and verify the public examples."
     should_trigger: true

@@ -4,9 +4,10 @@ description: >-
   Apply release-quality engineering discipline when modifying, reviewing,
   debugging, documenting, or verifying an existing Rust package or Cargo
   workspace. Use for repository-backed Rust work involving Cargo policy,
-  public APIs, errors, unsafe code, lints, tests, documentation, dependencies,
-  MSRV, or release verification. Do not use for general Rust explanations,
-  translation, summarization, or non-repository learning questions.
+  public APIs, ownership and resource lifecycles, errors, unsafe code, lints,
+  tests, documentation, dependencies, MSRV, or release verification. Do not
+  use for general Rust explanations, translation, summarization, or
+  non-repository learning questions.
 ---
 
 # Rust Strict
@@ -154,6 +155,7 @@ normally needed; repository gates and actual impact may require more.
 | Bug fix | `workflow.md`, `testing.md`; identify the failing invariant and regression surface | Reproduce or encode the failure, run the focused regression and scoped Clippy; widen when the bug crosses boundaries | Any matrix deviation |
 | Code review | `workflow.md`, `review.md`, plus references matching the diff; record whether execution is authorized | Inspect contract, diff, tests, and claimed evidence; run risk-scoped checks when allowed; list unrun checks as gaps | Do not edit unless separately authorized |
 | Public API change | `api-design.md`, `docs.md`, `errors.md`, `testing.md`; identify consumers and publication status | Scoped Clippy, tests, rustdoc/doctests; add semver checking for published or reusable libraries when practical | Any breaking change |
+| Resource ownership, guards, RAII, or Drop | `workflow.md`, `ownership-raii.md`, `testing.md`; identify the resource owner, lifecycle states, and whether finalization is synchronous and infallible | Focused tests for normal completion, early return, explicit finalization, and fallback cleanup; widen for public API, concurrency, or unsafe impact | Public break, new unsafe, or policy deviation |
 | Documentation-only | `docs.md`, `workflow.md`; distinguish prose from runnable examples | Rustdoc for public docs; add doctests when runnable examples change | Policy deviation only |
 | Dependency change | `workflow.md`, `drift-control.md`, `dependencies-release.md`; inspect lockfile, source, features, licenses, and advisories | Affected build/test row plus every configured `cargo deny` check | Git/wildcard dependency or deny relaxation |
 | Lint, toolchain, or MSRV policy | `workflow.md`, `lints.md`; align manifests, config, CI, and docs | Affected static baseline; exercise declared MSRV when changed or sensitive | Lint weakening or MSRV change |
@@ -167,7 +169,9 @@ Load `drift-control.md` for non-trivial additions to large, duplicated,
 suppressed, or already debt-sensitive surfaces. Load `cli-systems.md` when the
 CLI/process/filesystem boundary changes. Load `correctness-safety.md` when the
 change handles untrusted input, arithmetic on sizes/offsets/counts, numeric
-conversions, or resource limits.
+conversions, or resource limits. Load `ownership-raii.md` when a change acquires
+or releases a resource, introduces a guard or `Drop` implementation, or moves
+fallible or asynchronous finalization behind a lifecycle API.
 
 ## Verification selection algorithm
 
@@ -273,6 +277,7 @@ required by the task decision table.
 | public documentation and runnable examples | `references/docs.md` |
 | public API and semver compatibility | `references/api-design.md` |
 | typed errors and the sole panic contract | `references/errors.md` |
+| ownership, RAII guards, Drop, and explicit finalization | `references/ownership-raii.md` |
 | arithmetic, conversions, untrusted input, and resource bounds | `references/correctness-safety.md` |
 | unsafe and FFI safety contracts | `references/unsafe.md` |
 | async, threads, locks, channels, atomics, cancellation, shutdown | `references/concurrency.md` |

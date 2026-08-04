@@ -32,6 +32,7 @@ REQUIRED_REFERENCES = {
     "references/docs.md",
     "references/api-design.md",
     "references/errors.md",
+    "references/ownership-raii.md",
     "references/correctness-safety.md",
     "references/unsafe.md",
     "references/concurrency.md",
@@ -47,6 +48,7 @@ REQUIRED_ACTIVATION_IDS = {
     "update-msrv",
     "modify-deny-policy",
     "fix-overflow",
+    "add-raii-guard",
     "review-doctest",
     "explain-ownership",
     "translate-error",
@@ -76,6 +78,10 @@ REQUIRED_BEHAVIOR_IDS = {
     "minimum-verification-floor",
     "task-unsafe-surface-stretch",
     "invariant-panic-after-weak-parse",
+    "raii-infallible-guard",
+    "raii-fallible-finalization",
+    "raii-explicit-commit",
+    "raii-async-shutdown",
 }
 REQUIRED_COMMAND_IDS = {
     "fmt-check",
@@ -200,6 +206,7 @@ def validate_required_files() -> None:
         "evals/policy-conflicts.yaml",
         "evals/verification-scoping.yaml",
         "evals/unsafe-and-api.yaml",
+        "evals/ownership-raii.yaml",
         "evals/command-templates.yaml",
         ".github/workflows/validate-skill.yml",
     ):
@@ -527,6 +534,7 @@ def validate_behavior_evals() -> None:
         "policy-conflicts.yaml",
         "verification-scoping.yaml",
         "unsafe-and-api.yaml",
+        "ownership-raii.yaml",
     ):
         path = ROOT / "evals" / filename
         data = mapping(load_yaml(path), relative(path))
@@ -665,6 +673,13 @@ def validate_policy_ownership() -> None:
             "### Approval scope",
             "minimal set of FFI entrypoints",
             "never waives the safety-proof",
+        ),
+        "references/ownership-raii.md": (
+            "`Drop` must not panic",
+            "explicit fallible finalizer",
+            "The synchronous `Drop` trait cannot await asynchronous cleanup",
+            "`mem::forget`",
+            "released exactly once",
         ),
     }
     for path_key, phrases in contract_phrases.items():
