@@ -1,27 +1,23 @@
 # Ownership and RAII
 
-Use this reference when a change acquires or releases a resource, introduces a
-guard or `Drop` implementation, or defines explicit close, finish, commit,
-rollback, cancellation, or shutdown behavior.
+Use this reference for resource acquisition or release, guards, `Drop`, or
+explicit close, finish, commit, rollback, cancellation, and shutdown behavior.
 
 ## 1. Source-backed constraints
 
 - [`Drop`](https://doc.rust-lang.org/core/ops/trait.Drop.html) is synchronous;
-  Rust also drops owned fields automatically, so implement it only when the
-  type directly owns additional cleanup behavior.
+  implement it only when automatic field destruction is insufficient.
 - Safe [`mem::forget`](https://doc.rust-lang.org/core/mem/fn.forget.html) may
   skip destruction, so soundness must never depend on a destructor running.
-- [`AsyncDrop`](https://doc.rust-lang.org/std/future/trait.AsyncDrop.html) may
-  be unavailable or unstable on the declared toolchain. Verify it instead of
-  assuming async destruction exists.
+- [`AsyncDrop`](https://doc.rust-lang.org/std/future/trait.AsyncDrop.html) may be
+  unavailable or unstable; verify the declared toolchain before using it.
 
 ## 2. Decide whether RAII fits
 
 Prefer an RAII guard when cleanup is required on every ordinary control-flow
 exit and is synchronous, bounded, and effectively infallible. Common examples
-include releasing a lock, returning a permit or capacity reservation, restoring
-temporary state, and closing an operating-system handle when close errors are
-not part of the caller's success contract.
+include releasing a lock, returning a permit or reservation, restoring temporary
+state, and closing a handle when close errors are not part of success.
 
 Do not force RAII onto lifecycle work whose outcome the caller must observe:
 
@@ -30,10 +26,9 @@ Do not force RAII onto lifecycle work whose outcome the caller must observe:
 - business decisions such as commit, publish, or acknowledge;
 - coordinated draining or shutdown that must wait for other work.
 
-Use an explicit lifecycle method for those operations. A hybrid design may use
-RAII as a best-effort fallback, for example explicit commit with rollback on
-drop. Never make successful commit or durable persistence depend only on
-destruction.
+Use an explicit lifecycle method for those operations. A hybrid may use RAII as
+a best-effort fallback, such as explicit commit with rollback on drop. Never
+make successful commit or durable persistence depend only on destruction.
 
 ## 3. Define the guard contract
 
@@ -55,32 +50,33 @@ destruction.
   not a universal cleanup guarantee. Skipping destruction may leak a resource;
   it must not permit undefined behavior or invalidate other live values.
 
-Review manual `ManuallyDrop`, raw ownership transfer, and custom deallocation
-under `references/unsafe.md`; RAII does not make an unsafe ownership proof
-automatic.
+Review `ManuallyDrop`, raw ownership transfer, and custom deallocation under
+`references/unsafe.md`; RAII does not make an unsafe ownership proof automatic.
 
 ## 4. Combine explicit finalization with Drop
 
-When finalization can fail, provide an explicit fallible finalizer such as
-`finish`, `close`, or `shutdown` that returns `Result`. Prefer consuming `self`
-when retry is meaningless and reuse after finalization would be invalid. Use a
-mutable receiver or return ownership on failure when the caller may retry.
+Provide an explicit fallible finalizer such as `finish`, `close`, or `shutdown`.
+Consume `self` when retry is meaningless; otherwise preserve or return ownership.
 
-- Disarm fallback cleanup only after explicit finalization succeeds.
-- Preserve the original resource or a valid fallback state when finalization
-  fails; do not mark it complete before the fallible operation commits.
+- Drive lifecycle state from the operation's actual ownership and effect, not
+  from `Ok` or `Err` alone. A finalizer may consume or release the resource and
+  still report an error.
+- Keep fallback cleanup armed when failure definitely preserves ownership and
+  retry is valid. When failure consumes the resource, disarm cleanup and enter
+  a terminal failed state. When the effect is unknown, enter a terminal failed
+  or indeterminate state and prohibit blind retry or fallback cleanup.
+- Move a resource out of its armed slot before an operation that consumes it on
+  every result. Record success only after the operation commits, while keeping
+  terminal failure distinct from successful completion.
 - Use `Drop` only for a synchronous, non-panicking fallback such as rollback,
   cancellation signalling, or best-effort release.
 - Document which errors explicit finalization reports and what the destructor
   does when it was not called.
 
-The synchronous `Drop` trait cannot await asynchronous cleanup. Do not assume
-an async destructor is available: verify the declared toolchain and treat any
-unstable `AsyncDrop` use as a toolchain-specific async design decision. Unless
-the repository explicitly adopts and verifies that surface, expose an async
-lifecycle method and give a supervisor responsibility for awaiting it. `Drop`
-may perform a safe non-blocking signal or local release, but must not pretend
-that asynchronous draining completed.
+The synchronous `Drop` trait cannot await asynchronous cleanup. Treat unstable
+`AsyncDrop` as a toolchain-specific design decision. Otherwise expose an async
+lifecycle method owned by a supervisor; `Drop` may signal or release locally but
+must not pretend asynchronous draining completed.
 
 ## 5. Verify lifecycle behavior
 
@@ -89,11 +85,10 @@ Test the contract at the ownership boundary:
 - normal scope exit and early return through `?` release exactly once;
 - moving a guard transfers cleanup without duplicating it;
 - explicit success disarms fallback cleanup;
-- explicit failure preserves the documented retry or fallback behavior;
+- finalizer errors cover retained, consumed, and indeterminate outcomes without
+  duplicate cleanup;
 - dropped transactions roll back while committed transactions do not;
 - async cancellation and shutdown follow the documented ownership policy.
 
-Use deterministic fakes or counters when they make acquisition and release
-observable. Panic-unwind tests prove cleanup only for unwinding builds; they do
-not prove cleanup under `panic = "abort"`, process termination, or
-`mem::forget`.
+Use deterministic fakes or counters. Panic-unwind tests prove cleanup only for
+unwinding builds, not `panic = "abort"`, process termination, or `mem::forget`.

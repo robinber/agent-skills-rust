@@ -11,6 +11,10 @@
 - Add activation and adversarial behavior evals for infallible guards,
   fallible finalization, commit/rollback, and async shutdown, plus validator
   contract checks that keep the lifecycle rules discoverable.
+- Model fallible finalization by retained, consumed, or indeterminate effects
+  instead of assuming every `Err` preserves ownership.
+- Move evals to a plural task-class schema and validate the union of mandatory
+  references so additive classification is mechanically enforced.
 
 ## 1.2.0 — 2026-08-03
 

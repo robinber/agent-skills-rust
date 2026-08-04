@@ -1,59 +1,59 @@
-schema_version: 1
+schema_version: 2
 suite: activation
 scenarios:
   - id: review-rust-pr
     prompt: "Review this Rust pull request for correctness and policy compliance."
     should_trigger: true
     expected:
-      task_class: "code review"
+      task_classes: ["code review"]
       references: ["references/workflow.md", "references/review.md"]
   - id: add-cargo-feature
     prompt: "Add a Cargo feature to this workspace and verify its feature rows."
     should_trigger: true
     expected:
-      task_class: "implementation"
+      task_classes: ["implementation"]
       references: ["references/workflow.md", "references/testing.md"]
   - id: change-public-trait
     prompt: "Change this crate's public trait and update downstream-facing docs."
     should_trigger: true
     expected:
-      task_class: "public API change"
+      task_classes: ["public API change"]
       references: ["references/api-design.md", "references/docs.md", "references/errors.md", "references/testing.md"]
   - id: review-unsafe-ffi
     prompt: "Review the unsafe FFI wrapper in this Cargo package."
     should_trigger: true
     expected:
-      task_class: "unsafe or FFI"
+      task_classes: ["code review", "unsafe or FFI"]
       references: ["references/unsafe.md", "references/testing.md", "references/review.md", "references/workflow.md"]
   - id: update-msrv
     prompt: "Raise the declared MSRV and align this Rust repository's CI."
     should_trigger: true
     expected:
-      task_class: "lint, toolchain, or MSRV policy"
+      task_classes: ["lint, toolchain, or MSRV policy"]
       references: ["references/workflow.md", "references/lints.md"]
   - id: modify-deny-policy
     prompt: "Modify deny.toml for this workspace dependency change."
     should_trigger: true
     expected:
-      task_class: "dependency change"
+      task_classes: ["dependency change"]
       references: ["references/workflow.md", "references/drift-control.md", "references/dependencies-release.md"]
   - id: fix-overflow
     prompt: "Fix this arithmetic overflow bug in the Rust parser."
     should_trigger: true
     expected:
-      task_class: "bug fix"
+      task_classes: ["bug fix"]
       references: ["references/workflow.md", "references/testing.md", "references/correctness-safety.md"]
   - id: add-raii-guard
     prompt: "Add a Rust guard that returns a capacity reservation when it is dropped, including on early return."
     should_trigger: true
     expected:
-      task_class: "resource ownership, guards, RAII, or Drop"
+      task_classes: ["resource ownership, guards, RAII, or Drop"]
       references: ["references/workflow.md", "references/ownership-raii.md", "references/testing.md"]
   - id: review-doctest
     prompt: "Review these Rust doctest changes and verify the public examples."
     should_trigger: true
     expected:
-      task_class: "documentation-only"
+      task_classes: ["code review", "documentation-only"]
       references: ["references/docs.md", "references/workflow.md", "references/review.md"]
   - id: explain-ownership
     prompt: "Explain Rust ownership to a beginner with a small example."
