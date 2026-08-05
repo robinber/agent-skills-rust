@@ -32,6 +32,7 @@ REQUIRED_REFERENCES = {
     "references/docs.md",
     "references/api-design.md",
     "references/errors.md",
+    "references/ownership-raii.md",
     "references/correctness-safety.md",
     "references/unsafe.md",
     "references/concurrency.md",
@@ -47,6 +48,7 @@ REQUIRED_ACTIVATION_IDS = {
     "update-msrv",
     "modify-deny-policy",
     "fix-overflow",
+    "add-raii-guard",
     "review-doctest",
     "explain-ownership",
     "translate-error",
@@ -76,6 +78,11 @@ REQUIRED_BEHAVIOR_IDS = {
     "minimum-verification-floor",
     "task-unsafe-surface-stretch",
     "invariant-panic-after-weak-parse",
+    "raii-infallible-guard",
+    "raii-fallible-finalization",
+    "raii-explicit-commit",
+    "raii-async-shutdown",
+    "raii-consuming-error-terminal",
 }
 REQUIRED_COMMAND_IDS = {
     "fmt-check",
@@ -200,6 +207,7 @@ def validate_required_files() -> None:
         "evals/policy-conflicts.yaml",
         "evals/verification-scoping.yaml",
         "evals/unsafe-and-api.yaml",
+        "evals/ownership-raii.yaml",
         "evals/command-templates.yaml",
         ".github/workflows/validate-skill.yml",
     ):
@@ -448,23 +456,43 @@ def validate_reference_list(value: object, context: str) -> None:
             fail(f"{context}: invalid reference {ref!r}")
 
 
+def validate_task_classes(value: object, context: str) -> list[str]:
+    items = sequence(value, context)
+    task_classes: list[str] = []
+    for item in items:
+        if not isinstance(item, str) or not item.strip():
+            fail(f"{context}: every task class must be a non-empty string")
+            continue
+        task_classes.append(item)
+
+    normalized = [task_class.lower() for task_class in task_classes]
+    if len(set(normalized)) != len(normalized):
+        fail(f"{context}: task classes must be unique")
+    if not task_classes:
+        fail(f"{context}: expected at least one task class")
+    return task_classes
+
+
 def validate_mandatory_references(
-    task_class: object,
+    task_classes: list[str],
     references: object,
     decision_table: dict[str, set[str]],
     context: str,
 ) -> None:
-    if not isinstance(task_class, str):
-        return
-    mandatory = decision_table.get(task_class.lower())
-    if mandatory is None:
-        fail(f"{context}: task class {task_class!r} has no decision-table row")
-        return
+    mandatory: set[str] = set()
+    for task_class in task_classes:
+        task_references = decision_table.get(task_class.lower())
+        if task_references is None:
+            fail(f"{context}: task class {task_class!r} has no decision-table row")
+            continue
+        mandatory.update(task_references)
+
     listed = {ref for ref in sequence(references, context) if isinstance(ref, str)}
     missing = mandatory - listed
     if missing:
         fail(
-            f"{context}: missing mandatory references for {task_class!r}: "
+            f"{context}: missing mandatory references for task classes "
+            f"{task_classes!r}: "
             f"{sorted(missing)}"
         )
 
@@ -472,6 +500,8 @@ def validate_mandatory_references(
 def validate_activation_evals() -> None:
     path = ROOT / "evals/activation.yaml"
     data = mapping(load_yaml(path), relative(path))
+    if data.get("schema_version") != 2:
+        fail(f"{relative(path)}: expected schema_version 2")
     scenarios = sequence(data.get("scenarios"), f"{relative(path)} scenarios")
     decision_table = load_decision_table()
     seen: set[str] = set()
@@ -491,13 +521,15 @@ def validate_activation_evals() -> None:
         if not isinstance(should_trigger, bool):
             fail(f"activation scenario {scenario_id}: should_trigger must be boolean")
         elif should_trigger:
-            if not isinstance(expected.get("task_class"), str):
-                fail(f"activation scenario {scenario_id}: missing task_class")
+            task_classes = validate_task_classes(
+                expected.get("task_classes"),
+                f"activation scenario {scenario_id} task_classes",
+            )
             validate_reference_list(
                 expected.get("references"), f"activation scenario {scenario_id} references"
             )
             validate_mandatory_references(
-                expected.get("task_class"),
+                task_classes,
                 expected.get("references"),
                 decision_table,
                 f"activation scenario {scenario_id}",
@@ -527,9 +559,12 @@ def validate_behavior_evals() -> None:
         "policy-conflicts.yaml",
         "verification-scoping.yaml",
         "unsafe-and-api.yaml",
+        "ownership-raii.yaml",
     ):
         path = ROOT / "evals" / filename
         data = mapping(load_yaml(path), relative(path))
+        if data.get("schema_version") != 2:
+            fail(f"{relative(path)}: expected schema_version 2")
         scenarios = sequence(data.get("scenarios"), f"{relative(path)} scenarios")
         for index, item in enumerate(scenarios):
             scenario = mapping(item, f"{filename} scenario {index}")
@@ -543,13 +578,15 @@ def validate_behavior_evals() -> None:
             seen.add(scenario_id)
             if not isinstance(scenario.get("prompt"), str):
                 fail(f"behavior scenario {scenario_id}: prompt must be a string")
-            if not isinstance(expected.get("classification"), str):
-                fail(f"behavior scenario {scenario_id}: missing classification")
+            task_classes = validate_task_classes(
+                expected.get("task_classes"),
+                f"behavior scenario {scenario_id} task_classes",
+            )
             validate_reference_list(
                 expected.get("references"), f"behavior scenario {scenario_id} references"
             )
             validate_mandatory_references(
-                expected.get("classification"),
+                task_classes,
                 expected.get("references"),
                 decision_table,
                 f"behavior scenario {scenario_id}",
@@ -665,6 +702,15 @@ def validate_policy_ownership() -> None:
             "### Approval scope",
             "minimal set of FFI entrypoints",
             "never waives the safety-proof",
+        ),
+        "references/ownership-raii.md": (
+            "`Drop` must not panic",
+            "explicit fallible finalizer",
+            "The synchronous `Drop` trait cannot await asynchronous cleanup",
+            "`mem::forget`",
+            "released exactly once",
+            "actual ownership and effect",
+            "terminal failed or indeterminate state",
         ),
     }
     for path_key, phrases in contract_phrases.items():

@@ -1,0 +1,48 @@
+schema_version: 2
+suite: behavior
+scenarios:
+  - id: raii-infallible-guard
+    prompt: "Replace manual capacity-release calls on every return path with a Rust reservation guard whose release is synchronous and infallible."
+    expected:
+      task_classes: ["resource ownership, guards, RAII, or Drop"]
+      references: ["references/workflow.md", "references/ownership-raii.md", "references/testing.md"]
+      decision: "continue"
+      completion_state: "COMPLETE"
+      verification: ["Exercise normal scope exit, early return through ?, guard moves, and exactly-once release with a deterministic counter."]
+      forbidden_claims: ["Keep manual release calls on every return path instead of making the guard own cleanup.", "Drop is guaranteed after mem::forget or process abort."]
+  - id: raii-fallible-finalization
+    prompt: "Put a writer's fallible flush and close entirely in Drop so callers cannot observe finalization errors."
+    expected:
+      task_classes: ["resource ownership, guards, RAII, or Drop"]
+      references: ["references/workflow.md", "references/ownership-raii.md", "references/testing.md", "references/errors.md"]
+      decision: "continue"
+      completion_state: "COMPLETE"
+      verification: ["Expose an explicit fallible finalizer, test its success and error paths, and test any synchronous best-effort Drop fallback separately."]
+      forbidden_claims: ["Drop can report flush or close errors to the caller.", "A destructor-only API proves durable finalization."]
+  - id: raii-consuming-error-terminal
+    prompt: "Keep Drop armed whenever a close-like finalizer returns Err, even though the operation may already have consumed or released the handle."
+    expected:
+      task_classes: ["resource ownership, guards, RAII, or Drop"]
+      references: ["references/workflow.md", "references/ownership-raii.md", "references/testing.md", "references/errors.md"]
+      decision: "continue"
+      completion_state: "COMPLETE"
+      verification: ["Model retained, consumed, and indeterminate error effects; keep fallback armed only for retained ownership, make consumed or indeterminate outcomes terminal, and test that cleanup is never repeated."]
+      forbidden_claims: ["Err proves that ownership remains with the guard.", "Fallback cleanup must stay armed until the finalizer returns Ok regardless of its effect."]
+  - id: raii-explicit-commit
+    prompt: "Design a transaction that commits business state automatically from Drop."
+    expected:
+      task_classes: ["resource ownership, guards, RAII, or Drop"]
+      references: ["references/workflow.md", "references/ownership-raii.md", "references/testing.md"]
+      decision: "continue"
+      completion_state: "COMPLETE"
+      verification: ["Keep commit explicit and fallible, use rollback-on-drop only as a safe fallback, and test committed, failed, and dropped states."]
+      forbidden_claims: ["Successful commit should depend on destructor timing.", "Drop is the right place for a caller-visible business decision."]
+  - id: raii-async-shutdown
+    prompt: "Make Drop await protocol shutdown and queue draining for an async Rust connection."
+    expected:
+      task_classes: ["resource ownership, guards, RAII, or Drop", "async, locks, channels, atomics, or spawned tasks"]
+      references: ["references/workflow.md", "references/ownership-raii.md", "references/testing.md", "references/concurrency.md"]
+      decision: "continue"
+      completion_state: "COMPLETE"
+      verification: ["Expose an explicit async shutdown owned by a supervisor, test cancellation and draining, and limit Drop to safe synchronous non-blocking fallback work."]
+      forbidden_claims: ["Rust Drop can await asynchronous cleanup.", "Signalling cancellation in Drop proves shutdown and draining completed."]

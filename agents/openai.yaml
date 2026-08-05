@@ -1,7 +1,7 @@
 interface:
   display_name: "Rust Strict"
-  short_description: "Release-quality Rust workflow and verification"
+  short_description: "Release-quality Rust ownership and verification"
   default_prompt: >-
     Use $rust-strict to build, refactor, debug, review, or document this Rust
-    project with strict Cargo, lint, API, unsafe, error-handling, drift-control,
-    and verification discipline.
+    project with strict Cargo, lint, API, ownership/RAII, unsafe,
+    error-handling, drift-control, and verification discipline.

@@ -2,7 +2,7 @@
 
 Portable Agent Skill for **release-quality Rust work**: Cargo/workspace
 discipline, impact-scoped verification, lint ratchet, API and error contracts,
-`unsafe` boundaries, and no-net-new-debt defaults.
+ownership/RAII lifecycles, `unsafe` boundaries, and no-net-new-debt defaults.
 
 This skill is **project-agnostic**. Repository policy (`AGENTS.md`,
 `Cargo.toml`, toolchain files, CI) is the effective contract; the skill teaches
@@ -30,6 +30,7 @@ agents how to discover and enforce it without inventing policy from memory.
 | Default drift profile (800 / 1000 LOC, ≤ 6 params) | Overrides + current pressure-zone files |
 | Typed errors, thin `main`, supply-chain rules | Concrete error enums and exit-code maps |
 | Generic unsafe / arithmetic / API rules | Domain invariants and critical surfaces |
+| Ownership, RAII, and finalization defaults | Concrete resource lifecycle and cleanup policy |
 | "Respect repository policy" | What the repo actually chose (e.g. pedantic) |
 
 Do **not** fork this skill to hardcode module maps or product-specific
@@ -102,10 +103,10 @@ Always perform a post-install discovery check:
 ```bash
 cd .agents/skills/rust-strict
 git fetch --tags
-git checkout v1.2.0
+git checkout v1.3.0
 cd -
 git add .agents/skills/rust-strict
-git commit -m "Pin rust-strict skill to v1.2.0"
+git commit -m "Pin rust-strict skill to v1.3.0"
 ```
 
 ### Wire agent project files

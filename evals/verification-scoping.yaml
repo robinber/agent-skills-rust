@@ -1,10 +1,10 @@
-schema_version: 1
+schema_version: 2
 suite: behavior
 scenarios:
   - id: mutually-exclusive-features
     prompt: "Two supported Cargo features are mutually exclusive, so --all-features cannot represent a valid row."
     expected:
-      classification: "implementation"
+      task_classes: ["implementation"]
       references: ["references/workflow.md", "references/testing.md"]
       decision: "continue"
       completion_state: "COMPLETE"
@@ -13,7 +13,7 @@ scenarios:
   - id: pinned-toolchain-newer-msrv
     prompt: "The pinned Rust toolchain is newer than the declared MSRV and the API change uses a recently stabilized method."
     expected:
-      classification: "public API change"
+      task_classes: ["public API change"]
       references: ["references/api-design.md", "references/docs.md", "references/errors.md", "references/testing.md", "references/workflow.md"]
       decision: "continue"
       completion_state: "COMPLETE"
@@ -22,7 +22,7 @@ scenarios:
   - id: target-specific-package
     prompt: "A cfg-gated package changes Linux-only behavior while the agent is running on macOS."
     expected:
-      classification: "target-specific, proc-macro, build script, no_std, or alloc"
+      task_classes: ["target-specific, proc-macro, build script, no_std, or alloc"]
       references: ["references/workflow.md", "references/testing.md"]
       decision: "continue_and_report"
       completion_state: "COMPLETE WITH GAPS"
@@ -31,7 +31,7 @@ scenarios:
   - id: narrow-test-limited-coverage
     prompt: "One filtered regression passes, but the claimed behavior also affects a shared parser and downstream package."
     expected:
-      classification: "bug fix"
+      task_classes: ["bug fix"]
       references: ["references/workflow.md", "references/testing.md"]
       decision: "continue"
       completion_state: "COMPLETE"
@@ -40,7 +40,7 @@ scenarios:
   - id: unrelated-preexisting-failure
     prompt: "The scoped gate for the changed package passes, but a workspace test in an untouched package already fails on the pre-change baseline."
     expected:
-      classification: "implementation"
+      task_classes: ["implementation"]
       references: ["references/workflow.md", "references/testing.md"]
       decision: "continue_and_report"
       completion_state: "COMPLETE"
@@ -49,7 +49,7 @@ scenarios:
   - id: preexisting-without-baseline
     prompt: "A relevant but not repository-required workspace test failure is first observed after the change, and no pre-change baseline or CI history is available."
     expected:
-      classification: "implementation"
+      task_classes: ["implementation"]
       references: ["references/workflow.md", "references/testing.md"]
       decision: "continue_and_report"
       completion_state: "COMPLETE WITH GAPS"
@@ -58,7 +58,7 @@ scenarios:
   - id: minimum-verification-floor
     prompt: "An implementation change compiles; the focused test and scoped Clippy are available but have not been run, and no repository gate names them."
     expected:
-      classification: "implementation"
+      task_classes: ["implementation"]
       references: ["references/workflow.md", "references/testing.md"]
       decision: "continue"
       completion_state: "COMPLETE"
