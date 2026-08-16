@@ -103,10 +103,10 @@ Always perform a post-install discovery check:
 ```bash
 cd .agents/skills/rust-strict
 git fetch --tags
-git checkout v1.3.0
+git checkout v1.4.0
 cd -
 git add .agents/skills/rust-strict
-git commit -m "Pin rust-strict skill to v1.3.0"
+git commit -m "Pin rust-strict skill to v1.4.0"
 ```
 
 ### Wire agent project files

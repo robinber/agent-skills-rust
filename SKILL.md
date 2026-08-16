@@ -183,9 +183,17 @@ fallible or asynchronous finalization behind a lifecycle API.
    command shapes in `references/workflow.md` and `references/testing.md`.
 4. Add the relevant static, test, rustdoc/doctest, dependency, MSRV, semver,
    unsafe, or platform layer when the change touches that surface.
-5. Widen from one target to package, feature matrix, dependents, or workspace
+5. Identify the checks no scoped command can reach. A repository may gate on
+   properties that live outside any single package: recorded identity or hash
+   sets, generated files that must match their generator, cross-crate surface
+   scans, or documentation mirroring a computed value. No
+   `cargo <cmd> -p <crate> <filter>` can fail on any of them, so a scoped pass
+   is not evidence about them. Ask which of these read the files you changed and
+   run those. If the repository names them, follow that list; if it does not,
+   report the uncovered surface as a gap rather than assuming none exists.
+6. Widen from one target to package, feature matrix, dependents, or workspace
    only when shared impact or repository policy requires it.
-6. Record each exact command, result, and coverage. Never describe a filtered
+7. Record each exact command, result, and coverage. Never describe a filtered
    test as a full suite or a host/default check as cross-platform proof.
 
 If a tool is unavailable, follow the fallback and state-selection rules in

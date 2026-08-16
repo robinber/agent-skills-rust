@@ -1,0 +1,39 @@
+schema_version: 2
+suite: behavior
+scenarios:
+  - id: two-copies-already-disagree
+    prompt: "Two functions encode the same lifecycle rule and return different answers for one input; one is reached from the RPC router and the other from the query path."
+    expected:
+      task_classes: ["bug fix"]
+      references: ["references/workflow.md", "references/drift-control.md", "references/testing.md"]
+      decision: "continue"
+      completion_state: "COMPLETE"
+      verification: ["Establish which behavior is correct, give the rule one owner, and add a regression test that fails against the rejected behavior."]
+      forbidden_claims: ["Only a third copy makes duplication actionable.", "Keep both behaviors behind a flag so no caller changes.", "The copy found first is the correct one."]
+  - id: second-copy-with-no-binding-test
+    prompt: "A validation rule is about to be spelled out a second time in another module because the first copy is not reachable from there."
+    expected:
+      task_classes: ["implementation"]
+      references: ["references/workflow.md", "references/drift-control.md", "references/testing.md"]
+      decision: "continue"
+      completion_state: "COMPLETE"
+      verification: ["Either give the rule one owner both sites call, or add a test that pins both copies to the same behavior and fails if they diverge."]
+      forbidden_claims: ["Two copies are always transitional and need no test.", "Duplication is only a size problem."]
+  - id: divergence-found-while-refactoring
+    prompt: "While splitting a module, two comparators for the same identity turn out to disagree on whether one field participates."
+    expected:
+      task_classes: ["implementation"]
+      references: ["references/workflow.md", "references/drift-control.md", "references/testing.md"]
+      decision: "continue_and_report"
+      completion_state: "COMPLETE"
+      verification: ["Report the divergence as a finding of its own, choose the correct behavior with a stated reason, and pin it with a regression test."]
+      forbidden_claims: ["A behavior-preserving refactor may carry an existing disagreement forward unreported.", "Preserving both comparators keeps the refactor safe."]
+  - id: similar-code-different-reasons
+    prompt: "Three capacity checks look alike but bound different quantities and must return different typed errors to their callers."
+    expected:
+      task_classes: ["implementation"]
+      references: ["references/workflow.md", "references/drift-control.md", "references/testing.md"]
+      decision: "continue_and_report"
+      completion_state: "COMPLETE"
+      verification: ["State the divergence reason and leave the sites separate; do not force one helper that flattens distinct error types."]
+      forbidden_claims: ["Syntactic resemblance alone requires an abstraction.", "One helper is always the smaller change."]

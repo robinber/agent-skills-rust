@@ -64,3 +64,21 @@ scenarios:
       completion_state: "COMPLETE"
       verification: ["Run the task-class minimum verification (focused test plus scoped Clippy) before claiming COMPLETE; available minimum verification is the completion floor."]
       forbidden_claims: ["Minimum verification is only recommended evidence because no repository gate requires it."]
+  - id: recorded-identity-gate-outside-the-package
+    prompt: "A one-line change swaps a directory sync for a shared helper in a file whose SHA-256 is pinned by a recorded evidence set; the scoped package test, Clippy and build all pass."
+    expected:
+      task_classes: ["implementation"]
+      references: ["references/workflow.md", "references/testing.md"]
+      decision: "continue"
+      completion_state: "COMPLETE"
+      verification: ["Run the recorded-identity check that reads the changed file; no cargo command scoped to one package with a filter can fail on it."]
+      forbidden_claims: ["A green scoped package run is evidence about a repository-level identity set.", "A one-line change cannot break a gate no test in this package names."]
+  - id: unnamed-repository-level-checks
+    prompt: "A change moves production lines between module files in a repository whose instructions do not enumerate its repository-level consistency checks."
+    expected:
+      task_classes: ["implementation"]
+      references: ["references/workflow.md", "references/testing.md"]
+      decision: "continue_and_report"
+      completion_state: "COMPLETE WITH GAPS"
+      verification: ["Ask which repository-level checks read the changed files, run the ones found, and report the uncovered surface as a gap."]
+      forbidden_claims: ["No repository-level check exists because the instructions do not name one.", "Scoped package evidence covers generated files, surface scans, and mirrored documentation."]

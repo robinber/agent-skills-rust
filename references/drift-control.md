@@ -78,6 +78,19 @@ state the explicit divergence reason. Similar-looking code that evolves for
 different reasons may stay separate; syntactic resemblance alone does not
 require an abstraction.
 
+Count is not the risk; divergence is. Two copies of a rule that must agree are
+already a defect the moment nothing forces them to agree. When you leave a
+second copy in place, either give the rule one owner or add a test that pins
+every copy to the same behavior and fails if they diverge. A copy no test binds
+to its sibling will drift, and the drift is silent: it yields two answers to one
+question rather than a compile error.
+
+When copies have already diverged, **the divergence is the finding**, not the
+duplication. Establish which behavior is correct, state why, and add a
+regression test that fails against the rejected one. Never preserve both behind
+a flag or a parameter, and never assume the copy you found first is the correct
+one.
+
 If `AGENTS.md` lists domain-specific duplication hotspots, search those first.
 
 ## 5. Suppression gates

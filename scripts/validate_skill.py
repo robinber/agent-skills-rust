@@ -83,6 +83,12 @@ REQUIRED_BEHAVIOR_IDS = {
     "raii-explicit-commit",
     "raii-async-shutdown",
     "raii-consuming-error-terminal",
+    "recorded-identity-gate-outside-the-package",
+    "unnamed-repository-level-checks",
+    "two-copies-already-disagree",
+    "second-copy-with-no-binding-test",
+    "divergence-found-while-refactoring",
+    "similar-code-different-reasons",
 }
 REQUIRED_COMMAND_IDS = {
     "fmt-check",
@@ -208,6 +214,7 @@ def validate_required_files() -> None:
         "evals/verification-scoping.yaml",
         "evals/unsafe-and-api.yaml",
         "evals/ownership-raii.yaml",
+        "evals/drift-control.yaml",
         "evals/command-templates.yaml",
         ".github/workflows/validate-skill.yml",
     ):
@@ -560,6 +567,7 @@ def validate_behavior_evals() -> None:
         "verification-scoping.yaml",
         "unsafe-and-api.yaml",
         "ownership-raii.yaml",
+        "drift-control.yaml",
     ):
         path = ROOT / "evals" / filename
         data = mapping(load_yaml(path), relative(path))
