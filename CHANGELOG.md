@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.4.0 — 2026-08-16
+
+- Make divergence, not copy count, the duplication trigger: two copies of a rule
+  that must agree are already a defect once nothing forces them to agree, and a
+  second copy needs either one owner or a test that pins both and fails if they
+  drift.
+- Treat copies that have already diverged as a finding in their own right:
+  establish the correct behavior, state why, and pin it with a regression test
+  that fails against the rejected one, rather than preserving both behind a flag.
+- Add a verification-selection step for checks no scoped command can reach —
+  recorded identity or hash sets, generated files, cross-crate surface scans, and
+  documentation mirroring a computed value — with an explicit gap report when the
+  repository does not enumerate them.
+- Add a `drift-control` behavior eval suite and two verification-scoping cases
+  covering the new rules, including the already-diverged and
+  similar-code-different-reasons boundaries.
+
 ## 1.3.0 — 2026-08-04
 
 - Add a routed ownership and RAII reference covering when scope-bound cleanup
