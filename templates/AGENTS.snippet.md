@@ -51,8 +51,10 @@ Keep product rules here, not in the shared skill:
 - Secrets / redaction / credential transport rules
 - Critical surfaces that need tests when touched
 - Known pressure-zone files (current large modules)
-- Domain duplication hotspots (search before adding a third copy)
-- Explicit deviations from rust-strict (temporary or permanent), with reason
+- Domain duplication hotspots (search before adding another copy)
+- Standing deviations from rust-strict, each with its exact scope and reason
+  (for example "git dependencies allowed in `crates/proto`"); a documented
+  deviation counts as approval for that scope only
 
 ## Working rules (optional short deltas)
 

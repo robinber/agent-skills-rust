@@ -11,8 +11,17 @@ resource limits.
 - Use checked arithmetic when overflow means invalid input, corruption, or an
   impossible allocation. Use saturating or wrapping arithmetic only when that
   semantic is intentional and documented.
-- Avoid narrowing `as` conversions at trust boundaries; `as` silently truncates
-  and never fails. Prefer `TryFrom` and propagate a typed error.
+- When overflow would be a programmer bug, use `strict_add`, `strict_mul`, and
+  related methods (1.91): they panic in every profile, while plain operators
+  wrap silently in release builds. This is an invariant panic under
+  `references/errors.md`.
+- Use `cast_signed()` and `cast_unsigned()` (1.87) for deliberate same-width
+  sign changes instead of `as`.
+- Avoid lossy `as` conversions at trust boundaries: integer narrowing
+  truncates silently, and float-to-integer casts saturate and map NaN to 0.
+  Prefer `TryFrom` and propagate a typed error.
+- Compare floats with `total_cmp`, never `partial_cmp(..).unwrap()`, and decide
+  the NaN policy explicitly.
 - Validate divisors, shift amounts, ranges, and index relationships before use.
 - Keep unit conversions explicit through names, newtypes, or checked helpers;
   do not mix units behind a shared primitive type.
@@ -39,6 +48,12 @@ assumption.
 - Treat deserialization of untrusted data as parsing: enforce limits and depth
   and return typed errors, never panics. See the panic contract in
   `references/errors.md`.
+- Truncate untrusted text at a character boundary
+  (`&s[..s.floor_char_boundary(n)]`, 1.91); `&s[..n]` panics inside a
+  multi-byte character.
+- Escape control characters in untrusted text written to terminals or logs
+  (`{:?}`, `str::escape_debug`); raw escape sequences can rewrite the terminal
+  or forge log lines.
 
 ## 3. Data invariants
 

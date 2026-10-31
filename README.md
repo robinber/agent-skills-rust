@@ -1,8 +1,9 @@
 # rust-strict
 
-Portable Agent Skill for **release-quality Rust work**: Cargo/workspace
-discipline, impact-scoped verification, lint ratchet, API and error contracts,
-ownership/RAII lifecycles, `unsafe` boundaries, and no-net-new-debt defaults.
+Portable Agent Skill for **release-quality Rust work**: idiomatic modern Rust,
+project setup, Cargo/workspace discipline, impact-scoped verification, lint
+ratchet, API and error contracts, ownership/RAII lifecycles, `unsafe`
+boundaries, and no-net-new-debt defaults.
 
 This skill is **project-agnostic**. Repository policy (`AGENTS.md`,
 `Cargo.toml`, toolchain files, CI) is the effective contract; the skill teaches
@@ -19,14 +20,14 @@ agents how to discover and enforce it without inventing policy from memory.
 | [`references/`](references/) | Deep guidance, loaded on demand |
 | [`agents/openai.yaml`](agents/openai.yaml) | Optional Codex / ChatGPT skill UI metadata |
 | [`templates/AGENTS.snippet.md`](templates/AGENTS.snippet.md) | What to keep **in each project** |
-| [`scripts/validate_skill.py`](scripts/validate_skill.py) | Static metadata, links, command, release, and fixture validation |
-| [`evals/`](evals/) | Activation, behavior, command, and discovery evaluation cases |
+| [`scripts/validate_skill.py`](scripts/validate_skill.py) | Maintainer check: frontmatter, links, reference routing, release version |
 
 ## Design split
 
 | Lives in this skill | Lives in each project's `AGENTS.md` |
 |---|---|
 | How to anchor, verify, lint-ratchet | Exact MSRV, aliases, `just check` |
+| Starter layout, lint table, and CI baseline for new projects | The choices the project actually adopted |
 | Default drift profile (800 / 1000 LOC, ≤ 6 params) | Overrides + current pressure-zone files |
 | Typed errors, thin `main`, supply-chain rules | Concrete error enums and exit-code maps |
 | Generic unsafe / arithmetic / API rules | Domain invariants and critical surfaces |
@@ -47,7 +48,7 @@ to match the skill frontmatter.
 | **Claude Code** | `.claude/skills/rust-strict/` | Symlink to the canonical checkout |
 | **Grok in a mixed Claude/Grok repo** | Reads `.claude/skills/rust-strict/` directly | Reuse the Claude path; do not create a third clone |
 
-Current [Claude Code skill documentation](https://code.claude.com/docs/en/slash-commands)
+Current [Claude Code skill documentation](https://code.claude.com/docs/en/skills)
 uses `.claude/skills`, and the official changelog records fixes for symlinked
 skill directories in Claude Code 2.0.62. Use 2.0.62 or newer for the symlink
 layout. [Grok documents zero-configuration Claude Code skill
@@ -103,10 +104,10 @@ Always perform a post-install discovery check:
 ```bash
 cd .agents/skills/rust-strict
 git fetch --tags
-git checkout v1.4.0
+git checkout v2.0.0
 cd -
 git add .agents/skills/rust-strict
-git commit -m "Pin rust-strict skill to v1.4.0"
+git commit -m "Pin rust-strict skill to v2.0.0"
 ```
 
 ### Wire agent project files
@@ -146,20 +147,16 @@ Reviews: independent Codex passes (v1.0.0 → v1.0.1) and Claude Code review
 
 ## Validate changes
 
-The validator requires Python 3 and PyYAML. It checks metadata, local Markdown
-links, reference routing, command fixtures, evaluation schemas, placeholders,
-line limits, and release-version consistency.
+The validator requires Python 3 and PyYAML. It checks frontmatter, local
+Markdown links, that every reference is routed from `SKILL.md`, placeholders,
+the `SKILL.md` line budget, and release-version consistency.
 
 ```bash
 python3 -m pip install -r requirements-dev.txt
 python3 scripts/validate_skill.py
 ```
 
-CI runs the same validator on every pull request. Declarative activation,
-behavior, command, and native-discovery cases live in [`evals/`](evals/). The
-Kira discovery matrix remains a credentialed local forward-test: it verifies
-Codex through `.agents/skills`, Claude through `.claude/skills`, and Grok through
-the Claude path with `.agents` and `.grok` intentionally absent.
+CI runs the same validator on every pull request.
 
 ## Versioning
 

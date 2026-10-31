@@ -1,145 +1,138 @@
-# unsafe
+# Unsafe and FFI
 
 Use this reference whenever adding, reviewing, refactoring, or documenting
-`unsafe` code, raw pointers, FFI, or safe abstractions over kernel/system
-interfaces.
+`unsafe` code, raw pointers, FFI, or safe abstractions over system interfaces.
+When unsure, consult the Reference's
+[behavior considered undefined](https://doc.rust-lang.org/reference/behavior-considered-undefined.html),
+the [`std::ptr` safety documentation](https://doc.rust-lang.org/std/ptr/index.html),
+and the [Rustonomicon](https://doc.rust-lang.org/nomicon/).
 
-## 1. Source-backed guidance
+Contents: 1. Approval scope · 2. Rules · 3. Edition 2024 · 4. Soundness ·
+5. FFI contract · 6. Verification
 
-- Prefer safe Rust first. `unsafe` is a boundary where the compiler stops proving
-  memory safety; the author must prove it instead.
-- Read the [Rustonomicon](https://doc.rust-lang.org/nomicon/) and the
-  [Unsafe Code Guidelines](https://rust-lang.github.io/unsafe-code-guidelines/)
-  when unsure.
-- Standard library policy: each `unsafe` block should have a `SAFETY` comment
-  explaining why the block is sound and which invariants must hold. See the
-  [safety comments policy](https://std-dev-guide.rust-lang.org/policy/safety-comments.html).
-- Public `unsafe fn` items need a rustdoc `# Safety` section describing caller
-  obligations.
-- `unsafe impl` of unsafe traits needs the same quality of local proof: which
-  invariants of the trait are upheld and why callers cannot break them via the
-  safe API.
-- Safe wrappers should encapsulate invariants so ordinary callers cannot cause
-  undefined behavior.
+## 1. Approval scope
 
-## 2. Edition 2024 checklist
+Introducing or widening `unsafe` needs explicit approval when repository policy
+forbids it, when the task does not name an unsafe, FFI, or system boundary, or
+when the change would reach beyond the named surface.
 
-When the crate edition is 2024 (or newer), also confirm:
+A task that explicitly names an FFI, raw-pointer, allocator, kernel, or
+unsafe-abstraction surface approves the minimal set of entry points, types, and
+unsafe operations it names or necessarily implies. `unsafe` outside that set,
+such as helper allocators, general-purpose parsers, or unrelated modules, needs
+its own approval. Approval never waives the rules below.
 
-- **`unsafe_op_in_unsafe_fn`**: unsafe operations inside `unsafe fn` still need
-  an `unsafe` block (or an explicit opt-out with justification). Do not assume
-  the function body is an implicit unsafe region.
-- **`unsafe extern`**: extern blocks use the edition's `unsafe extern` form when
-  required; document the FFI contract.
-- **`#[unsafe(...)]` attributes**: items such as `no_mangle` / link attributes
-  that the edition treats as unsafe must use the `#[unsafe(...)]` form and stay
-  justified.
-- Keep proofs local: a SAFETY comment on an outer function is not a substitute
-  for proofs on each unsafe operation when the edition requires explicit blocks.
+## 2. Rules
 
-See the
-[Edition Guide on unsafe ops in unsafe fn](https://doc.rust-lang.org/edition-guide/rust-2024/unsafe-op-in-unsafe-fn.html)
-and the
-[Reference on `unsafe`](https://doc.rust-lang.org/reference/unsafe-keyword.html).
+1. Use `unsafe` only when no adequate safe implementation exists. A
+   performance motivation needs a measured comparison against a safe baseline.
+2. Keep each `unsafe` block minimal; do checks and setup in safe code around it.
+3. Give every `unsafe` block a `// SAFETY:` comment with the local proof: which
+   pointers are valid, aligned, initialized, and non-aliasing; which lifetimes
+   or ownership transfers justify the operation; which external contracts are
+   assumed; why concurrent access is safe.
+4. Document `# Safety` preconditions on every public `unsafe fn`. Mark a
+   function `unsafe` only when misuse can cause undefined behavior, not merely
+   because it is dangerous. An `unsafe impl` states which trait invariants hold
+   and why safe callers cannot break them.
+5. Expose a small safe API rather than raw unsafe operations.
+6. Never use `static mut`; use atomics, `OnceLock`, or a lock.
+7. Never round-trip pointers through integers with `as`. Manipulate pointer
+   bits with `addr`, `with_addr`, and `map_addr` (1.84); use
+   `expose_provenance` and `with_exposed_provenance` only for FFI or MMIO
+   addresses.
+8. Do not dilute a repository-wide `unsafe_code = "deny"` with local
+   workarounds; encode an approved deviation at the smallest scope and in the
+   documented repository contract.
+9. Where `unsafe` is allowed, enable `clippy::undocumented_unsafe_blocks`,
+   `clippy::multiple_unsafe_ops_per_block`, and, with a 1.99+ toolchain floor,
+   the rustc lint `raw_borrows_via_references`.
 
-## 3. Skill policy
+```rust
+pub fn ascii_prefix(bytes: &[u8]) -> &str {
+    let end = bytes.iter().position(|b| !b.is_ascii()).unwrap_or(bytes.len());
+    // SAFETY: every byte in `bytes[..end]` is ASCII (checked by `position`
+    // above), and ASCII bytes are always valid UTF-8.
+    unsafe { std::str::from_utf8_unchecked(&bytes[..end]) }
+}
+```
 
-### Approval scope
+## 3. Edition 2024
 
-Introducing or widening `unsafe` requires explicit operator approval when any
-of these holds:
+- Unsafe operations inside an `unsafe fn` still need their own `unsafe` block
+  (`unsafe_op_in_unsafe_fn` warns by default); prove each one locally.
+- Extern blocks are written `unsafe extern`.
+- `no_mangle`, `export_name`, and `link_section` are written
+  `#[unsafe(...)]` and need a justification. Both forms work from Rust 1.82 in
+  every edition.
 
-- repository policy currently forbids `unsafe`;
-- the requested task does not already identify an unsafe/FFI/system boundary;
-- the implementation would expand the unsafe boundary beyond the named task;
-- an adequate safe implementation exists with acceptable correctness and
-  performance.
+## 4. Soundness
 
-A task that explicitly requests work on a named FFI, raw-pointer, allocator,
-kernel, or unsafe-abstraction surface counts as approval for that exact
-surface. The approved surface is the minimal set of FFI entrypoints, types,
-and unsafe operations the task names or necessarily implies; `unsafe` outside
-that set — helper allocators, general-purpose parsers, unrelated modules —
-needs its own approval, and task-scoped approval never overrides rule 1 below
-when an adequate safe implementation exists for part of the work. This never
-waives the safety-proof, documentation, testing, or reporting rules below.
+- Soundness is a module property. The proof must cover every function in the
+  module that can modify the state the unsafe code relies on; keep that state
+  private.
+- Assume hostile safe callers. Never rely on caller-supplied safe trait
+  implementations (`Ord`, `Eq`, `Hash`, `Clone`, `Deref`,
+  `Iterator::size_hint`, `ExactSizeIterator::len`) for memory safety.
+- Keep state valid before calling code that may panic, such as user closures
+  or trait methods: set `len` only after elements are initialized, or use a
+  drop guard.
+- Error and early-return paths must leave no broken invariant, and drop paths
+  must be sound. `ManuallyDrop`, raw ownership transfer, and custom
+  deallocation need an exactly-once release proof (see
+  `references/ownership-raii.md`).
+- `unsafe impl Send` or `unsafe impl Sync` is new unsafe; see
+  `references/concurrency.md`.
 
-Technical rules (apply the approval scope above before editing):
+## 5. FFI contract
 
-1. Introduce `unsafe` only when the approved task requires it and no adequate
-   safe API exists.
-2. Keep `unsafe` blocks as small as possible. Push checks and setup into safe
-   code around them.
-3. Every `unsafe` block must include a `// SAFETY:` comment that states the local
-   proof, not a vague claim that "this is fine".
-4. Every public `unsafe fn` must document `# Safety` preconditions.
-5. Prefer a small safe API over exporting raw unsafe operations.
-6. Do not dilute repo-wide `unsafe_code = "deny"` through a local workaround.
-   Apply the core approval rule, then encode any authorized deviation at the
-   smallest scope and in the documented repository contract.
-7. Prefer mechanical enforcement: enable `clippy::undocumented_unsafe_blocks`
-   and `clippy::multiple_unsafe_ops_per_block` when the package allows `unsafe`.
-8. When changing `unsafe`, add or update tests for the safe abstraction's
-   guarantees. Prefer:
+For every foreign boundary, record and verify:
 
-<!-- command-fixture: miri-test -->
+- **ABI**: the correct `extern` ABI string, written `unsafe extern` on edition
+  2024.
+- **Layout**: every type crossing the boundary has a defined, ABI-compatible
+  representation and a valid-value set matching the foreign contract.
+  `repr(C)` does not repair non-FFI-safe nested fields; `repr(transparent)` is
+  only as FFI-safe as its field. Keep `improper_ctypes` and
+  `improper_ctypes_definitions` passing and match integer widths to the
+  foreign declaration.
+- **Validity**: which pointers may be null or dangling, and how long each must
+  stay valid.
+- **Strings and buffers**: length, encoding, and termination on both sides.
+- **Ownership**: which side allocates and which frees, and the double-free and
+  leak behavior of every error path.
+- **Callbacks and unwinding**: threading, reentrancy, and context-pointer
+  lifetime. Since Rust 1.81 a Rust panic escaping an `extern "C"` function
+  aborts the process; use `catch_unwind` when an abort is unacceptable, and
+  `extern "C-unwind"` when unwinding across the boundary is intended. Foreign
+  exceptions unwinding into an `extern "C"` function remain undefined
+  behavior.
+- **Errors**: how foreign error codes or `errno` map to typed Rust errors.
+
+Generated bindings and vendored stubs may contain bulk `unsafe`; isolate them
+and document the trust boundary.
+
+## 6. Verification
+
+Test the safe abstraction's guarantees, including adversarial inputs and
+panicking callbacks, and run Miri:
+
 ```bash
 cargo +nightly miri test -p <package> <target-selection> <feature-selection> <test-filter>
 ```
 
-When Miri cannot run (device I/O, `io_uring`, unsupported syscalls), compensate
-with focused safe-API and adversarial tests, boundary assertions, sanitizers or
-`cargo careful` when practical, and careful review of drop/error paths. Follow
-the unavailable-tool reporting contract in `references/workflow.md`.
+- With threads or atomics, explore several schedules with
+  `MIRIFLAGS="-Zmiri-many-seeds=0..16"`; one seed is one interleaving.
+- For byte-order-sensitive code, also run Miri on a big-endian target
+  (`--target s390x-unknown-linux-gnu`).
+- Add `-Zmiri-strict-provenance` when code manipulates pointer bits. Never
+  switch aliasing models (`-Zmiri-tree-borrows`) just to get a green run;
+  report the finding.
 
-### Good SAFETY comments
-
-State:
-
-- which pointers/handles are valid, aligned, initialized, and non-aliasing as
-  required;
-- which lifetimes or ownership transfers justify the operation;
-- which external contracts (kernel, FFI, hardware) are assumed;
-- why concurrent access is safe if shared state is involved.
-
-### FFI contract checklist
-
-For every foreign boundary, record and verify:
-
-- ABI: the correct `extern` ABI string and, on edition 2024, the `unsafe
-  extern` form;
-- layout: every parameter, return type, and nested field crossing the
-  boundary has a defined, ABI-compatible representation and a valid-value set
-  matching the foreign contract. `repr(C)` does not repair non-FFI-safe nested
-  fields, and `repr(transparent)` is only as FFI-safe as the field it
-  delegates to; keep `improper_ctypes` / `improper_ctypes_definitions` passing
-  and match integer widths to the foreign declaration;
-- nullability and validity: which pointers may be null or dangling, and how
-  long each pointer must remain valid;
-- strings and buffers: length, encoding, and termination conventions on both
-  sides;
-- ownership: which side allocates, which function frees, and the double-free
-  and leak behavior of every error path;
-- callbacks: threading assumptions, reentrancy, context-pointer lifetime, and
-  panic containment (`catch_unwind` or abort) so no Rust panic crosses a
-  non-unwinding ABI boundary;
-- errors: how foreign error codes or `errno` map into typed Rust errors.
-
-### Safe abstraction checklist
-
-| Question | Expected answer |
-|---|---|
-| What invariant does the safe type maintain? | Documented on the type |
-| Can a safe caller break that invariant? | No |
-| Is the `unsafe` region minimal? | Yes |
-| Are error and early-return paths free of UB and left-behind broken invariants? | Yes |
-| Are drop/cleanup paths sound? | Yes |
-
-## 4. Allowed exceptions
-
-- Generated bindings and vendor stubs may contain bulk `unsafe`; still isolate
-  them and document the trust boundary.
-- Performance-motivated `unsafe` needs a measured reason and a safe baseline
-  comparison when practical; "might be faster" is not enough.
-- If neither Miri nor sanitizers can cover the path, document the gap explicitly
-  and do not claim full dynamic safety coverage.
+When Miri cannot run (FFI, device I/O, unsupported syscalls), compensate with
+focused safe-API tests, boundary assertions, sanitizers,
+`cargo +nightly careful test`, and review of drop and error paths. On x86_64
+Linux, stable sanitizer targets exist: `rustup target add
+x86_64-unknown-linux-gnuasan` (also `gnumsan` and `gnutsan`), then test with
+`--target`. Report the uncovered surface; never claim full dynamic safety
+coverage.

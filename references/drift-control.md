@@ -1,9 +1,12 @@
-# drift-control
+# Drift control
 
 Use this reference when Rust work risks adding maintainability debt: large
 files, active audit findings, duplicated logic, broad lint suppressions, public
 API growth, command dispatch, runtime orchestration, config resolution, or
 missing tests.
+
+Contents: 1. No net-new debt · 2. Size and responsibility · 3. API shape ·
+4. Duplication · 5. Suppressions · 6. Tests · 7. Reporting
 
 ## 1. No net-new debt
 
@@ -31,7 +34,7 @@ Use them when present; do not invent a permanent debt list inside this skill.
 ## 2. Default size and responsibility profile
 
 These numbers are the **skill default strict profile**. Override them only when
-`AGENTS.md` or the operator documents different thresholds (for example
+`AGENTS.md` or the user documents different thresholds (for example
 generated code, vendor trees, or intentionally large tables).
 
 | Condition | Required behavior |
@@ -72,13 +75,9 @@ Search before adding logic for repeated concerns such as:
 - path, timestamp, retry, and configuration resolution;
 - adapter or backend request/response mapping.
 
-Two copies can be transitional. A third copy is a design decision: abstract
-duplicated domain knowledge or a genuinely shared invariant into a helper, or
-state the explicit divergence reason. Similar-looking code that evolves for
+Count is not the risk; divergence is. Similar-looking code that evolves for
 different reasons may stay separate; syntactic resemblance alone does not
-require an abstraction.
-
-Count is not the risk; divergence is. Two copies of a rule that must agree are
+require an abstraction. Two copies of a rule that must agree are
 already a defect the moment nothing forces them to agree. When you leave a
 second copy in place, either give the rule one owner or add a test that pins
 every copy to the same behavior and fails if they diverge. A copy no test binds
@@ -126,12 +125,8 @@ If `AGENTS.md` names project-critical surfaces, treat those as the primary list.
 If tests are impractical in the current turn, state the remaining gap and run
 the narrowest command that still exercises the touched path.
 
-## 7. Completion-report additions
+## 7. Reporting
 
-Under the mandatory completion schema in `SKILL.md`, also report when relevant:
-
-- files touched that were over 800 or 1,000 LOC (or the project override);
-- whether any active audit/debt finding was affected;
-- whether new duplication, parameters, or lint suppressions were introduced;
-- tests or verification commands run;
-- remaining drift, if any, as explicit follow-up.
+In the report's **Changed** line, mention files you grew past the size
+thresholds, any active debt finding you affected, and new duplication,
+parameters, or suppressions. List remaining drift under **Not covered**.

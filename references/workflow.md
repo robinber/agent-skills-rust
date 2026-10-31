@@ -1,218 +1,182 @@
 # Workflow and verification
 
-Use this reference for verification scope, manifest edits, CI alignment, MSRV,
-tool availability, and target or feature matrices. Apply the precedence and
-completion states defined in `SKILL.md`.
+Contents: 1. Execution row · 2. Command shapes · 3. Minimum evidence ·
+4. Manifest edits · 5. Feature and platform widening · 6. Required gates and
+failures · 7. Scope escalation · 8. Final diff audit
 
-## 1. Derive the execution row
+## 1. Execution row
 
 Read the repository sources that exist before choosing commands:
 
-- `Cargo.toml` and inherited workspace package/lint tables;
-- `rust-toolchain.toml` for the default execution toolchain;
-- package or inherited `rust-version` for declared MSRV;
-- `.rustfmt.toml` or `rustfmt.toml`, `clippy.toml`, and
-  `.cargo/config.toml`;
-- `deny.toml`, CI workflows, and documented `justfile` or `Makefile` gates.
+- `Cargo.toml` and inherited workspace package and lint tables;
+- `rust-toolchain.toml` for the execution toolchain;
+- package or inherited `rust-version` for the declared MSRV;
+- `rustfmt.toml` or `.rustfmt.toml`, `clippy.toml`, `.cargo/config.toml` and
+  any files it `include`s;
+- `deny.toml`, cargo-vet's `supply-chain/`, CI workflows, and documented
+  `justfile` or `Makefile` gates.
 
 Record package, target, feature row, platform, toolchain, and MSRV separately.
-Do not infer nightly, workspace-wide scope, or `--all-features`. Cargo aliases
-and task runners are conveniences; report the underlying command when they
-matter to the evidence.
+Cargo aliases and task runners are conveniences; report the underlying command
+when it matters to the evidence.
 
-If repository sources at this level appear to disagree, resolve by
-applicability and specificity per `SKILL.md` before treating it as a conflict:
-complementary gates are cumulative, and the nearest path-scoped rule governs
-its scope. A genuine conflict — incompatible outcomes for the same scope and
-concern — stops the affected verification or policy change; never select the
-cheaper gate merely because it permits more progress.
+## 2. Command shapes
 
-## 2. Canonical command shapes
+Adapt placeholders from repository evidence. Put package, target, and feature
+selection before `--`; put rustc or Clippy lint flags after it.
 
-Adapt placeholders from repository evidence. Put Cargo package, target, and
-feature selection before `--`; put rustc or Clippy lint flags after `--`.
-
-<!-- command-fixture: fmt-check -->
 ```bash
 cargo fmt --all --check
-```
-
-<!-- command-fixture: clippy-scoped -->
-```bash
 cargo clippy -p <package> <target-selection> <feature-selection> -- -D warnings
-```
-
-<!-- command-fixture: rustdoc-scoped -->
-```bash
 RUSTDOCFLAGS="-D warnings" cargo doc -p <package> --no-deps <feature-selection>
-```
-
-<!-- command-fixture: cargo-deny -->
-```bash
 cargo deny check
-```
-
-<!-- command-fixture: cargo-metadata -->
-```bash
 cargo metadata --no-deps --format-version 1
-```
-
-<!-- command-fixture: msrv-check -->
-```bash
 cargo +<msrv> check -p <package> <target-selection> <feature-selection>
-```
-
-<!-- command-fixture: target-check -->
-```bash
 cargo check -p <package> --target <target-triple> <feature-selection>
 ```
 
-Add `--locked` only when a committed lockfile exists and repository policy
-expects locked resolution. A successful check on a newer pinned toolchain is
-not proof of declared MSRV compatibility.
+Use `--all-targets` for Clippy when tests, examples, or benches changed. Add
+`--locked` when a committed lockfile exists and the repository expects locked
+resolution. Test commands are in `references/testing.md`.
 
-## 3. Verification layers
+On Cargo 1.97 or newer, `CARGO_BUILD_WARNINGS=deny` denies rustc, Clippy, and
+rustdoc warnings in one setting; older Cargo ignores it, so MSRV rows keep
+`-D warnings`. Make mass or mechanical rewrites with syntax-aware tools
+(`cargo fix`, `cargo clippy --fix -p <package>`, rust-analyzer renames), then
+audit the diff.
 
-Select every layer touched by the claim:
+## 3. Minimum evidence
+
+Each touched surface adds its row. These rows are the floor for `COMPLETE`
+whenever the needed tools are available.
 
 | Surface | Minimum evidence |
 |---|---|
-| Formatting only | Repository rustfmt check |
-| Private logic or bug fix | Focused regression test and scoped Clippy |
-| Public API | Scoped Clippy, behavior tests, rustdoc, changed doctests |
-| Metadata-only manifest edit | `cargo metadata`; formatting only if formatted sources changed |
-| Lints, features, toolchain, profiles | Affected static baseline and relevant feature/toolchain row |
-| Dependencies or `deny.toml` | Affected build/test row and every configured `cargo deny` check |
-| Declared MSRV-sensitive change | Repository MSRV job or explicit MSRV check |
-| Published-library compatibility | API review plus `cargo semver-checks` when configured or practical |
-| Unsafe or FFI | Safe-API tests plus the strongest applicable dynamic/fallback checks |
-| Cross-package/shared behavior | Affected package and direct dependents; workspace when policy or reach requires it |
+| Formatting only | rustfmt check |
+| Private logic | Focused test exercising the change, scoped Clippy |
+| Bug fix | Regression test that fails before the fix and passes after, scoped Clippy |
+| New package or workspace member | rustfmt, Clippy on all targets, tests, rustdoc for the new package |
+| Public API | Scoped Clippy, behavior tests, rustdoc, changed doctests; `cargo semver-checks` for published libraries when available |
+| Guards, `Drop`, finalization | The lifecycle tests in `references/ownership-raii.md` |
+| Async, threads, locks, atomics | Deterministic tests including cancellation and shutdown paths (`references/concurrency.md`) |
+| `unsafe` or FFI | Safe-API tests plus Miri, a sanitizer, or a documented fallback |
+| Documentation only | rustdoc; doctests when runnable examples change |
+| Metadata-only manifest edit | `cargo metadata` |
+| Lints, features, toolchain, profiles | Affected static baseline and the relevant feature or toolchain row |
+| Dependencies or `deny.toml` | Affected build and test row, every configured `cargo deny` check |
+| MSRV-sensitive change | Repository MSRV job or an explicit MSRV check |
+| Generated or vendored code | Regenerate or patch upstream, then build the affected row |
+| Cross-package behavior | Affected package and direct dependents; workspace when policy or reach requires it |
+| Code review | Inspect contract, diff, tests, and claimed evidence; run risk-scoped checks when execution is allowed; list unrun checks |
 | Release verdict | Every repository-required release row |
 
-Tests remain impact-scoped for formatting, prose, lint-only, and pure metadata
-changes. A behavior claim requires a test that exercises the touched behavior.
-See `references/testing.md` for command ordering and test selection.
+A behavior claim needs a test that exercises the touched behavior. Formatting,
+prose, lint-only, and metadata changes need no new tests.
 
-## 4. Manifest edit classes
+## 4. Manifest edits
 
-Classify every manifest change before selecting gates:
-
-| Edit class | Examples | Minimum verification |
+| Edit class | Examples | Minimum evidence |
 |---|---|---|
 | Metadata-only | description, readme, authors, keywords | `cargo metadata` |
-| Lint/toolchain/feature policy | `[lints]`, features, `rust-version`, profiles | affected static baseline and relevant rows |
-| Dependency/supply chain | dependency source/version/features, lockfile, `deny.toml` | affected build/test row plus configured deny checks |
-| Target wiring | `[[bin]]`, examples, proc-macros, build scripts, path dependencies | checks/tests for each affected host or target boundary |
+| Lint, toolchain, or feature policy | `[lints]`, features, `rust-version`, profiles | Affected static baseline and relevant rows |
+| Dependency or supply chain | dependency source, version, features, lockfile, `deny.toml` | Affected build and test row plus configured deny checks |
+| Target wiring | `[[bin]]`, examples, proc macros, build scripts, path dependencies | Checks and tests for each affected host or target boundary |
 
-When uncertain whether an edit is metadata-only or policy-changing, inspect its
-effect through Cargo metadata and choose the policy-changing class if ambiguity
-remains.
+When an edit could be metadata-only or policy-changing, inspect its effect
+through `cargo metadata`; if doubt remains, treat it as policy-changing.
 
 ## 5. Feature and platform widening
 
-Run or explicitly leave uncovered the row that the change can affect:
+Run, or explicitly report as uncovered, every row the change can affect:
 
 | Trigger | Required widening |
 |---|---|
 | `cfg(...)` or target-specific dependency | Relevant target triple and feature row |
-| `no_std` or `alloc` boundary | `--no-default-features` and the supported target/build mode |
+| `no_std` or `alloc` boundary | `--no-default-features` and the supported target or build mode |
 | Mutually exclusive features | One valid invocation per supported combination; never force `--all-features` |
-| Optional runtime/backend | Each changed backend row and shared default row |
-| Proc macro | Host compilation plus a consumer/expansion test |
-| Build script | Host execution, emitted config, environment inputs, and `rerun-if-*` behavior |
-| Platform FFI | Supported target build plus boundary tests or documented unavailable target |
+| Optional runtime or backend | Each changed backend row and the shared default row |
+| Proc macro | Host compilation plus a consumer or expansion test |
+| Build script | Host execution, emitted configuration, environment inputs, `rerun-if-*` behavior |
+| Platform FFI | Supported target build plus boundary tests, or a documented unavailable target |
 | Shared workspace policy | Every inheriting member or the canonical workspace gate |
 
-Never present host/default-feature success as proof for an untested target,
-backend, or feature combination. Cross-compilation proves compilation, not
-runtime behavior on the target.
+When `cargo-hack` is available, enumerate rows mechanically instead of
+hand-picking them:
 
-## 6. Unavailable tools and gates
+```bash
+cargo hack check -p <package> --each-feature --no-dev-deps
+cargo hack check -p <package> --feature-powerset --depth 2 --no-dev-deps
+cargo hack check -p <package> --rust-version
+```
 
-A gate is **required** only when at least one of these holds:
+`--each-feature` checks each feature alone, `--feature-powerset` checks
+combinations (bound large sets with `--depth`), and `--rust-version` checks
+against the declared MSRV.
 
-1. the repository contract explicitly declares it required;
-2. the operator explicitly requires its evidence;
-3. the requested outcome is itself a verification or release verdict that
-   cannot be truthfully established without that gate;
-4. the change affects a supported row that no narrower evidence can exercise.
+Cross-compilation proves compilation, not runtime behavior on the target.
 
-Everything else this skill recommends is recommended evidence, not a required
-gate. Do not invent additional blocking conditions beyond the completion
-floor: the decision-table minimum verification for the active task classes
-must run before `COMPLETE` whenever the needed tools are available (see the
-completion contract in `SKILL.md`).
+## 6. Required gates and failures
 
-Classify a missing or unusable command before selecting the final state:
+A gate is required only when at least one of these holds:
 
-1. Record the exact attempted command and diagnostic.
-2. State whether the tool or row is optional guidance, relevant evidence, or a
-   repository-required gate.
-3. Run the best available fallback that covers part of the same risk.
-4. Name the safety, compatibility, platform, or policy surface still uncovered.
-5. Select the completion state from `SKILL.md`.
+1. the repository contract declares it required;
+2. the user requires its evidence;
+3. the requested outcome is a verification or release verdict that cannot be
+   established without it;
+4. the change affects a supported row that no narrower evidence exercises.
 
-| Situation | State rule |
+Other checks this skill recommends are evidence, not gates. An unconfigured
+optional tool (no `deny.toml`, no semver tooling) is not a gap, but never claim
+its coverage.
+
+When a command is missing or unusable, record the attempted command and its
+diagnostic, run the best fallback that covers part of the same risk, and name
+the surface still uncovered. Then choose the state:
+
+| Situation | State |
 |---|---|
-| Optional tool unavailable, fallback covers the requested claim | May remain `COMPLETE`; report the optional omission when relevant |
-| Relevant check unavailable, work otherwise done, outcome does not require that proof | `COMPLETE WITH GAPS` |
-| Required gate unavailable for implementation handoff but existing CI is the authoritative pending runner | At best `COMPLETE WITH GAPS`; never claim the gate passed |
-| Required gate fails with an introduced or affected failure | `BLOCKED` until fixed or an exact scoped policy decision changes the contract |
-| Release/verification task requires an unavailable row | `BLOCKED` |
+| Optional tool unavailable, fallback covers the claim | `COMPLETE`; mention the omission when relevant |
+| Relevant check unavailable, outcome does not depend on it | `COMPLETE WITH GAPS` |
+| Required gate unavailable locally, CI is the authoritative pending runner | At best `COMPLETE WITH GAPS`; never claim it passed |
+| Required gate fails with an introduced or affected failure | `BLOCKED` until fixed or the user changes the contract |
+| Verification or release task needs an unavailable row | `BLOCKED` |
 
-### Failure classification
+Classify every observed failure:
 
-Classify every observed failure before selecting a state:
+- **Introduced**: caused by the change. In a required gate: `BLOCKED`.
+- **Affected pre-existing**: predates the change and involves the changed
+  surface. Keep the scoped claim only when the change does not worsen the
+  failure and the claim does not depend on the broken path; otherwise
+  `BLOCKED` until fixed or the scope shrinks.
+- **Unrelated pre-existing**: predates the change and does not involve the
+  changed surface. Report it with evidence and keep the scoped claim.
+- **Indeterminate**: no baseline distinguishes the cases. Build a narrower
+  reproducer or report the gap; in a required gate it prevents `COMPLETE`.
 
-- **introduced** — caused by the change. In a required scoped gate: `BLOCKED`.
-- **affected pre-existing** — predates the change but involves the changed
-  surface. `BLOCKED` for the affected claim until analyzed: when the change
-  does not worsen the failure and the claim does not depend on the broken
-  path, report it and keep the scoped claim; when the change intersects the
-  failure or the claim needs that path, stay `BLOCKED` until it is fixed or
-  the scope is reduced.
-- **unrelated pre-existing** — predates the change and does not involve the
-  changed surface. Do not repair it out of scope merely to obtain a green
-  global command, and never claim the global gate passed. Report it with
-  evidence and keep the scoped claim.
-- **indeterminate** — no reliable baseline distinguishes the cases. Build a
-  narrower reproducer or report the gap.
-
-Classifying a failure as affected or unrelated pre-existing requires baseline
-evidence: the same command failing on the pre-change tree, or authoritative CI
-history. Without baseline evidence the classification is indeterminate, and an
-indeterminate failure in a required gate prevents `COMPLETE`. A failure
-involves the changed surface when it exercises shared code, public API,
-features, or dependencies of the change set — not merely when the failing
-package is named in the task.
-
-This applies to Miri, sanitizers, `cargo deny`, `cargo semver-checks`, target
-toolchains, external services, and machine-specific harnesses. Absence of an
-unconfigured optional tool such as `deny.toml` is not itself a gap; falsely
-claiming its coverage is prohibited.
+A pre-existing classification needs baseline evidence: the same command failing
+on the pre-change tree, or authoritative CI history. A failure involves the
+changed surface when it exercises shared code, public API, features, or
+dependencies of the change, not merely because its package is named in the
+task.
 
 ## 7. Scope escalation
 
-Escalate only when evidence requires it:
-
-1. focused target or test;
-2. affected package and feature row;
-3. direct dependents or adjacent target rows;
-4. workspace or release matrix.
-
-Widen immediately when repository policy mandates a broader gate, a public
-contract crosses packages, shared build policy changes, or narrow checks cannot
-exercise the claimed behavior.
+Escalate only as far as evidence requires: focused test, then the affected
+package and feature row, then direct dependents or adjacent target rows, then
+the workspace or release matrix. Widen immediately when repository policy
+mandates a broader gate, a public contract crosses packages, shared build
+policy changes, or narrow checks cannot exercise the claimed behavior.
 
 ## 8. Final diff audit
 
-Before selecting a completion state for any change:
+Before choosing a state:
 
-1. Inspect the complete diff and changed-file list; confirm every changed file
-   belongs to the requested or necessary scope.
+1. Inspect the full diff and changed-file list; every file must belong to the
+   requested or necessary scope.
 2. Inspect manifest, feature, lockfile, visibility, public-API,
    lint-suppression, generated-file, and dependency deltas.
-3. Check for debug output, secrets, placeholder code, stale comments,
-   accidental formatting churn, and unrelated refactors.
-4. Confirm the final report describes the final diff, not an earlier
-   intermediate state.
+3. Remove debug output, secrets, placeholder code, stale comments, accidental
+   formatting churn, and unrelated refactors.
+4. Write comments, commit messages, and PR text for readers who never saw the
+   session: no references to prompts, iterations, or discarded attempts.
+5. Make sure the report describes the final diff, not an intermediate state.
