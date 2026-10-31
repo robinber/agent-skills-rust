@@ -3,7 +3,10 @@
 Use this reference for resource acquisition or release, guards, `Drop`, or
 explicit close, finish, commit, rollback, cancellation, and shutdown behavior.
 
-## 1. Source-backed constraints
+Contents: 1. Constraints · 2. Decide whether RAII fits · 3. Guard contract ·
+4. Explicit finalization with `Drop` · 5. Verification
+
+## 1. Constraints
 
 - [`Drop`](https://doc.rust-lang.org/core/ops/trait.Drop.html) is synchronous;
   implement it only when automatic field destruction is insufficient.
@@ -37,6 +40,11 @@ make successful commit or durable persistence depend only on destruction.
   automatically if construction fails.
 - Give the cleanup obligation one non-`Copy` owner. Moving the guard transfers
   the obligation; borrowing it does not.
+- Mark guard types `#[must_use = "..."]` with a message naming what the guard
+  releases. `let _ = acquire()` drops the guard on the spot, while
+  `let _guard = acquire()` keeps it alive until the end of the scope. Bind every
+  guard to a named variable and call `drop(guard)` when release must happen
+  earlier.
 - Keep lifecycle state private. Expose methods that preserve the invariant
   instead of flags callers can mutate independently.
 - If explicit release and fallback destruction coexist, represent armed,
@@ -72,6 +80,33 @@ Consume `self` when retry is meaningless; otherwise preserve or return ownership
   cancellation signalling, or best-effort release.
 - Document which errors explicit finalization reports and what the destructor
   does when it was not called.
+
+```rust
+#[must_use = "dropping a Transaction rolls it back"]
+pub struct Transaction<'c> {
+    conn: &'c mut Connection,
+    finished: bool,
+}
+
+impl Transaction<'_> {
+    pub fn commit(mut self) -> Result<(), DbError> {
+        self.finished = true;
+        self.conn.execute("COMMIT")
+    }
+}
+
+impl Drop for Transaction<'_> {
+    fn drop(&mut self) {
+        if !self.finished {
+            let _ = self.conn.execute("ROLLBACK");
+        }
+    }
+}
+```
+
+`commit` marks the transaction finished before trying, so a failed commit,
+whose effect is unknown, never triggers a blind rollback; only a transaction
+that was never committed rolls back on drop.
 
 The synchronous `Drop` trait cannot await asynchronous cleanup. Treat unstable
 `AsyncDrop` as a toolchain-specific design decision. Otherwise expose an async

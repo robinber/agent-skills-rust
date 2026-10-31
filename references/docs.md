@@ -1,61 +1,36 @@
-# docs
+# Documentation
 
-## 1. Source-backed guidance
+## 1. What to document
 
-- Rustdoc emphasizes documenting public items, examples, and the API contract
-  visible to users. See the rustdoc book on
-  [how to write documentation](https://doc.rust-lang.org/rustdoc/how-to-write-documentation.html).
-- Public-facing items should explain what they are for, how to use them, and the
-  important caveats that affect callers.
-- Examples should be short, runnable, and representative. If an example needs
-  setup noise, hide only the unhelpful scaffolding, not the behavior the reader
-  needs to see.
-- For APIs that can panic, fail, or rely on unsafe assumptions, document
-  `Panics`, `Errors`, and `Safety` sections where they apply.
-- Rustdoc tests compile the examples you show, so docs are part of the
-  correctness surface, not just prose.
+- Document every public crate, module, type, function, trait, and method meant
+  for others. Under `missing_docs`, a short non-repetitive sentence is enough
+  for obvious items.
+- Start with a one-line summary of about 15 words, then explain the contract:
+  what it is for, how to use it, and the caveats that affect callers. Explain
+  parameters in prose; do not add `# Arguments`, `# Parameters`, or `# Returns`
+  sections.
+- Add `# Errors`, `# Panics`, and `# Safety` sections whenever the item can
+  fail, panic, or carries unsafe preconditions.
+- Document the end state only. No design journals, "we chose X over Y",
+  "previously...", or guideline-compliance notes in rustdoc, READMEs, or
+  comments.
+- Comment private code only where the reason is not obvious from the code.
+  Generated code and internal organizing modules need little documentation.
 
-## 2. Rustdoc and doctest gates
+## 2. Examples
 
-When repository policy requires `RUSTDOCFLAGS="-D warnings"`, use the canonical
-scoped rustdoc command in `references/workflow.md`.
+- Write examples as if they will be copied into another crate: short, runnable,
+  and showing the behavior the reader needs. Hide only compile scaffolding.
+- Use `?` in examples, with a hidden `fn main() -> Result<...>` or a trailing
+  `# Ok::<(), Error>(())`, never `.unwrap()`.
+- Doctests are part of the correctness surface. A rustdoc build does not run
+  them; run `cargo test --doc` when runnable examples change.
 
-In a workspace, use `--workspace` or package selection as appropriate. Under
-that flag:
+## 3. Gates
 
-- Broken intra-doc links are build failures.
-- Bare URLs and other rustdoc warnings are build failures.
-- Private intra-doc links (`rustdoc::private_intra_doc_links`) are
-  warn-by-default, so they fail the build under `-D warnings` without extra
-  package configuration.
-
-`cargo doc` does **not** run doctests. When runnable rustdoc examples change,
-also use the canonical scoped doctest command in `references/testing.md`.
-
-When public docs or rustdoc examples change, verify locally with both gates
-before finalizing (unless the repo documents a different split).
-
-## 3. Skill policy
-
-- Document every public crate, module, type, function, trait, and method that is
-  meant to be consumed by others.
-- Keep docs focused on the contract, not an internal tour of the implementation.
-- Explain examples in the same terms a caller would use, and prefer one good
-  example over many weak ones.
-- Make `Panics`, `Errors`, and `Safety` sections explicit when the API can
-  trigger them; do not bury those details in prose.
-- For private helpers and trivial internal glue, write only the comments needed
-  to keep the code readable.
-- When `missing_docs` is denied, every public item needs at least a short doc; a
-  brief non-repetitive sentence is enough for obvious getters.
-
-## 4. Allowed exceptions
-
-- Trivial private code, generated code, and one-line helpers do not need
-  exhaustive documentation.
-- Internal modules that exist only to organize implementation details can stay
-  lightly documented if they are not part of the API surface.
-- Omitting public docs is allowed only when the repository's lint policy permits
-  it. Prefer a short doc over silence under `missing_docs = "deny"`.
-- If a doc example would be misleading because it omits essential setup, keep
-  the example minimal and hide only the boilerplate needed for compilation.
+Use the scoped rustdoc command in `references/workflow.md` when public docs
+change. Under `RUSTDOCFLAGS="-D warnings"` (not `RUSTFLAGS`), broken intra-doc
+links, bare URLs, and links from public docs to private items
+(`rustdoc::private_intra_doc_links`, warn-by-default) fail the build. Verify
+both rustdoc and doctests before finalizing public documentation changes
+unless the repository documents a different split.

@@ -1,5 +1,61 @@
 # Changelog
 
+## 2.0.0 — 2026-10-31
+
+Core and structure:
+
+- Rewrite `SKILL.md` as a lean core (296 → 186 lines): Rust quality defaults up
+  front, one routing table, a short precedence and approval section, and a
+  four-line report (State, Changed, Verified, Not covered) replacing the
+  multi-section completion schema and the stop matrix.
+- Let the repository contract grant standing, scoped approvals, and treat
+  `CONTRIBUTING.md` and AI-contribution policies as part of that contract.
+- Add `references/idioms.md`: modern std replacements for legacy crates gated
+  by MSRV, ownership in signatures, exhaustive matching, porting from
+  object-oriented languages, and performance defaults.
+- Add `references/project-setup.md`: workspace layout, MSRV and toolchain
+  choices, a verified starter lint table and `clippy.toml`,
+  `style_edition = "2024"`, lockfile and `deny.toml` policy, a CI baseline
+  with `CARGO_BUILD_WARNINGS=deny`, and docs.rs `doc_cfg` setup.
+- Consolidate duplicated rules, remove the contradictory third-copy
+  duplication rule, add contents blocks to long references, and use "user"
+  consistently.
+- Remove the `evals/` suites, command-fixture markers, and phrase pinning; the
+  validator now checks only frontmatter, links, reference routing,
+  placeholders, and release consistency.
+
+Rules agents commonly miss:
+
+- Tests: never edit, ignore, or weaken a test to get green; confirm a filtered
+  test actually ran; observe snapshot mismatches before accepting them;
+  stress-run flaky fixes; no `env::set_var` in tests.
+- Errors: never swallow a failure to avoid a panic, put context in error
+  variants instead of bare `#[from]`, report each cause once, and treat
+  poisoned locks as invariant panics.
+- Dependencies: never write crate names, versions, features, or APIs from
+  memory; read `cargo info` for deprecated or tombstone releases; check
+  RustSec even when unconfigured; never run a bare `cargo update`; resolve
+  within the MSRV; use `cargo package --workspace` and crates.io trusted
+  publishing; know cargo-deny's transitive `unsound` default and
+  `[bans.std-replacements]`.
+- API and ownership: additive features, one public path per item,
+  `impl RangeBounds` for range parameters, compile-time `Send` assertions,
+  `#[must_use]` guards and the `let _ =` pitfall.
+- Concurrency and observability: lock guards in `match` scrutinees, no runtime
+  inside a runtime, `select!` cancellation and futurelock, concurrent-map
+  references as lock guards, `Span::enter()` across `.await`, secrets in
+  `#[instrument]`, and escaping control characters in terminal and log output.
+- Correctness and unsafe: `floor_char_boundary`, `strict_*` arithmetic,
+  `cast_signed`/`cast_unsigned`, float comparison and casts, provenance APIs,
+  unsafe soundness as a module property, `extern "C"` panics abort since 1.81,
+  Miri many-seeds and strict provenance, and stable sanitizer targets.
+- Modern idioms verified on Rust 1.99.1, including `if let` guards, trait
+  upcasting, `get_disjoint_mut`, `extract_if`, `try_update` instead of the
+  deprecated `fetch_update`, and `let Ok(v)` for infallible results.
+
+Short compiled examples cover an error enum with context, a commit/rollback
+guard, and a `SAFETY` comment.
+
 ## 1.4.0 — 2026-08-16
 
 - Make divergence, not copy count, the duplication trigger: two copies of a rule

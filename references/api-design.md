@@ -1,137 +1,133 @@
-# api-design
+# API design
 
-## 1. Source-backed guidance
+Contents: 1. Shape · 2. Cargo features · 3. Async traits and auto traits ·
+4. Semver and compatibility · 5. Restraint
 
-- Follow the
-  [Rust API Guidelines checklist](https://rust-lang.github.io/api-guidelines/checklist.html).
-- Naming: `snake_case` for functions/modules, `UpperCamelCase` for types/traits,
-  conversion prefixes `as_` / `to_` / `into_`, getters without a useless `get_`
-  prefix unless needed for disambiguation.
-- Use common traits when they are semantically correct: `Debug`, `Display`,
-  `Clone`, `Eq`, `Hash`, `Default`, and standard conversion traits (`From`,
-  `TryFrom`, `AsRef`, `AsMut`).
-- Prefer newtypes to encode meaningful distinctions, builders for many
-  construction knobs, and `From`/`TryFrom` for explicit conversions.
-- Avoid ambiguous `bool` parameters in public APIs when a named type or enum
-  would communicate intent better.
-- Keep public fields private when future layout changes should not break
-  callers; expose accessors or constructors instead.
-- For fallible construction, follow the crate's existing convention. Prefer
-  `try_new` / `build` / `TryFrom` when that better distinguishes a fallible
-  constructor from an infallible `new`; a fallible `new() -> Result<…>` is valid
-  idiomatic Rust when that is the established API.
-- Seal traits that are not meant for downstream implementation.
+Follow the
+[Rust API Guidelines checklist](https://rust-lang.github.io/api-guidelines/checklist.html);
+the rules below are the ones most often missed.
 
-### Async public traits
+## 1. Shape
 
-Do not default to public `async fn` in traits without considering auto-traits
-and object safety. Choose deliberately:
+- Expose the smallest surface that supports the use case. In binaries and
+  application crates, default to `pub(crate)`.
+- Give each public item one public path. After moving an item, do not leave a
+  `pub use` alias behind, and never `pub use module::*`.
+- Encode meaning in types: newtypes for distinct quantities and identifiers,
+  enums for policy choices instead of `bool` parameters whose meaning is
+  invisible at the call site.
+- Keep fields private when future layout changes should not break callers;
+  expose constructors and accessors.
+- Validate at construction (see `references/correctness-safety.md`). For
+  fallible construction, follow the crate convention: `try_new`, `build`, or
+  `TryFrom` when the crate distinguishes them from an infallible `new`; a
+  fallible `new() -> Result<...>` or a domain name such as `open`, `bind`, or
+  `connect` is fine when established.
+- Use a builder when construction has optional knobs, validation, or
+  order-sensitive setup.
+- Put trait bounds on the `impl` blocks that need them, not on the type
+  definition; `struct Cache<K: Hash>` spreads the bound to every use and makes
+  relaxing it a breaking change.
+- Implement common traits when semantically correct (`Debug`, `Clone`, `Eq`,
+  `Hash`, `Default`, `From`, `AsRef`). Every public type should implement
+  `Debug`; for secret-bearing types, write a redacting `Debug` instead of
+  deriving it.
+- Mark public enums and structs expected to grow `#[non_exhaustive]` in
+  published or reused crates. Downstream code must then add a wildcard arm and
+  cannot use struct literals, so pair such structs with a constructor or
+  builder. Leave closed sets, such as protocol states that callers must match
+  exhaustively, exhaustive.
+- Seal traits that downstream crates should not implement.
+- Accept ranges in public APIs as `impl RangeBounds<T>` rather than a concrete
+  `std::ops::Range<T>`; new range types are planned and this signature stays
+  compatible.
+
+## 2. Cargo features
+
+- Keep features additive. Enabling a feature may add items or capabilities; it
+  must not remove items, change existing behavior incompatibly, or break code
+  that compiles without it. Cargo unifies features across the dependency graph,
+  so any dependent can enable them.
+- Gate standard-library support behind a default `std` feature, never behind a
+  `no_std` feature.
+- Avoid mutually exclusive features; prefer runtime configuration, a trait, or
+  separate crates. When exclusivity is unavoidable, fail with `compile_error!`
+  naming the conflicting features and document the valid combinations.
+- Use `dep:` for optional dependencies so they do not become implicit features,
+  and weak `?` forwarding (`"serde?/std"`) so a feature does not force an
+  optional dependency on.
+- Put test fakes and hooks needed by integration tests behind a non-default
+  `test-util` feature instead of making them unconditionally public.
+- Feature names and defaults are public API; see section 4.
+
+## 3. Async traits and auto traits
+
+A bare `async fn` in a public trait does not let callers require a `Send`
+future, and rustc warns about it (`async_fn_in_trait`). Choose deliberately:
 
 | Goal | Prefer |
 |---|---|
-| Multi-threaded executors | methods returning `impl Future<Output = T> + Send` (or equivalent) |
-| Single-threaded / thread-local / some embedded | intentionally `!Send` futures; document the executor assumption |
-| Both worlds | paired traits or `trait-variant`-style splits |
-| Dynamic dispatch | object-safe design with boxed/pinned futures as needed |
+| Multi-threaded executors | methods returning `impl Future<Output = T> + Send` |
+| Single-threaded or embedded executors | `!Send` futures, with the executor assumption documented |
+| Both | a `Send` variant generated with `trait_variant::make` |
+| Dynamic dispatch | an object-safe design with boxed futures |
 
-Requiring `Send` forever is a public contract. Do not force it when the crate's
-executor model is single-threaded.
+`Send`, `Sync`, and `Unpin` are public contracts. An `Rc` or a non-`Send` guard
+held across `.await` silently makes a future `!Send`, and only downstream code
+fails. Pin the contract with compile-time assertions for key public types and
+for the futures of key public `async fn`s:
 
-## 2. Review checklist
+```rust
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Client>();
+};
 
-Before exposing or changing a public item, confirm:
+#[test]
+fn fetch_future_is_send() {
+    fn assert_send<T: Send>(_: &T) {}
+    let client = Client::default();
+    assert_send(&client.fetch("key"));
+}
+```
 
-| Check | Question |
-|---|---|
-| Naming | Does it read like idiomatic Rust, with consistent word order? |
-| Meaning | Would a newtype or enum remove a class of misuse? |
-| Fallibility | Is failure visible in the type system when recoverable? |
-| Traits | Is `Debug` present (and secret-safe)? Are `Send`/`Sync` intentional? |
-| Errors | Is the error type meaningful, and are `Errors`/`Panics`/`Safety` documented? |
-| Surface | Is this the smallest public surface that still supports the use case? |
-| Stability | Would a private field or sealed trait preserve future flexibility? |
-| Examples | Would a short rustdoc example prevent the most likely misuse? |
+## 4. Semver and compatibility
 
-### Semver and compatibility
+Review compatibility for published libraries and reused workspace crates. For
+internal binaries, review caller impact without semver tooling. Check for:
 
-For a published library or a reusable workspace crate, review compatibility as
-part of the public contract. Internal binaries may skip tooling that has no
-meaningful downstream consumer, but should still review caller impact.
+- removed or renamed public items, reduced visibility, changed signatures;
+- removed or renamed features, changed defaults, newly invalid combinations;
+- trait method additions, object-safety changes, downstream impl breakage;
+- auto-trait changes (`Send`, `Sync`, `Unpin`);
+- stronger generic or lifetime bounds, changed associated types;
+- variants added to exhaustive public enums; `#[non_exhaustive]` added or
+  removed;
+- `repr`, layout, or ABI changes callers may rely on;
+- dependency types re-exported or embedded in the public API;
+- macro output and resolution visible downstream;
+- new inherent methods or blanket impls that change method resolution;
+- changes that raise the declared MSRV.
 
-Check explicitly for:
-
-- removed or renamed public items, reduced visibility, and changed signatures;
-- public feature removal, renaming, default changes, or newly invalid feature
-  combinations;
-- trait method additions, object-safety changes, and downstream implementation
-  breakage;
-- changes to `Send`, `Sync`, `Unpin`, or other auto-trait behavior;
-- stronger generic/lifetime bounds or changed associated types;
-- variants added to publicly matchable error enums and other exhaustiveness
-  hazards;
-- transitions to or from `#[non_exhaustive]` on types and variants;
-- `repr`, layout, or ABI changes on types callers may rely on;
-- dependency types re-exported or otherwise embedded in the public API;
-- macro output and resolution behavior visible to downstream crates;
-- new inherent methods or blanket implementations that can change downstream
-  method resolution;
-- dependency or API changes that raise the declared MSRV.
-
-For published crates, treat the Cargo Book's SemVer compatibility chapter as
-the authoritative checklist; this local list highlights common risks and is not
-exhaustive. `cargo semver-checks` is supporting evidence, not proof that every
-semantic, layout, macro, feature, or behavioral concern is covered.
-
-Use the repository's compatibility job when configured. Otherwise consider
-[`cargo-semver-checks`](https://github.com/obi1kenobi/cargo-semver-checks) when
+The Cargo Book's SemVer chapter is the authoritative list. Use the repository's
+compatibility job when configured, otherwise `cargo semver-checks` when
 practical:
 
-<!-- command-fixture: semver-check -->
 ```bash
 cargo semver-checks --package <package>
 ```
 
-An unavailable compatibility tool follows `references/workflow.md`; it does not
-turn a manual review into a machine-verified compatibility claim.
+Its pass is supporting evidence, not proof that semantic, layout, macro, or
+feature concerns are covered. Breaking a published or reused API needs explicit
+approval (see `SKILL.md`).
 
-## 3. Skill policy
+## 5. Restraint
 
-- Make names read like Rust, not like a generic OO API.
-- Expose types that carry meaning; do not encode domain states as loose
-  primitives when a newtype or enum is clearer.
-- Default to the smallest public surface that still supports the use case.
-- Use a builder when construction has optional knobs, validation, or
-  order-sensitive setup; use a simple `new` only when that truly stays simple.
-- Write rustdoc for public entry points as if the example will be copied into
-  another crate.
-- Prefer validating at construction so the rest of the code can rely on
-  invariants.
-- In binaries and internal application crates, prefer `pub(crate)` unless the
-  binary, integration tests, or a deliberate public surface needs the item
-  public.
-- For secret-bearing types, implement redacted `Debug`/`Display` or omit them
-  rather than deriving full dumps.
-- Preserve semver compatibility for published/reusable crates unless the exact
-  break has explicit approval under `SKILL.md`.
-
-### Anti-overengineering
-
-- Prefer the smallest coherent change that preserves existing correct local
-  design.
-- Do not introduce a trait, generic parameter, builder, dependency, feature,
-  or crate solely for hypothetical future reuse.
-- Abstract stable shared knowledge or a real boundary, not merely similar
-  syntax.
-- Preserve correct local idioms; keep unrelated cleanup out of the patch unless
-  it is required to make the requested change safe and understandable.
-
-## 4. Allowed exceptions
-
-- Private helpers may use `bool`, ad hoc naming, or direct primitive parameters
-  when the scope is local and the intent is obvious.
-- Domain-specific constructor names like `open`, `bind`, or `connect` are fine
-  when they match the resource being created.
-- An internal binary can stay binary-only if it is not meant to be reused or
-  depended on as a library.
-- Skip a builder or newtype when it adds ceremony without meaningful clarity or
-  validation benefit.
+- Prefer the smallest coherent change that preserves correct local design.
+- Do not introduce a trait, generic parameter, builder, dependency, feature, or
+  crate for hypothetical reuse. Abstract stable shared knowledge or a real
+  boundary, not similar-looking syntax.
+- Private helpers may use `bool` or primitive parameters when the scope is
+  local and the intent obvious.
+- Keep unrelated cleanup out of the patch unless the requested change needs it
+  to be safe and understandable.

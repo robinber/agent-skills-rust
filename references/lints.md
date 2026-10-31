@@ -1,117 +1,84 @@
-# lints
+# Lints
 
-## 1. Source-backed guidance
+Contents: 1. Where policy lives · 2. Toolchain floors · 3. Ratchet ·
+4. Suppressions and test exceptions · 5. Groups
 
-- Cargo supports lint configuration in manifests, including workspace-level lint
-  policy via `[workspace.lints]` inherited by packages with
-  `[lints] workspace = true`. See the Cargo Book on
-  [lints](https://doc.rust-lang.org/cargo/reference/lints.html).
-- Single-package repositories may put the same policy under package-level
-  `[lints]` without a workspace.
-- Clippy documents lint groups and expects teams to choose stricter groups
-  deliberately. See the Clippy docs on
-  [lint groups](https://doc.rust-lang.org/stable/clippy/lints.html).
-- `clippy::correctness` is deny-by-default for a reason; do not casually allow
-  it.
-- `clippy::pedantic` is for power users and can have intentional false
-  positives; enabling it means accepting local `allow`/`expect` where justified.
-- The `clippy::restriction` group must **not** be enabled as a whole. It
-  contains mutually exclusive lints and trips
-  `clippy::blanket_clippy_restriction_lints`. Cherry-pick only.
-- `clippy::nursery` is experimental; cherry-pick only.
+## 1. Where policy lives
 
-## 2. Toolchain floors (skill syntax)
+- **Manifest** (`[lints]` or `[workspace.lints]`): the source of truth. Every
+  workspace member inherits with `[lints] workspace = true` unless an approved
+  exception exists. Lint groups need a lower `priority` than individual lints
+  (for example `{ level = "warn", priority = -1 }`), or Clippy's
+  `lint_groups_priority` rejects the table.
+- **Verification and CI** (`cargo clippy ... -- -D warnings`,
+  `RUSTDOCFLAGS="-D warnings"`): promote warnings to failures. Preserve them in
+  CI once they exist. `RUSTFLAGS` does not affect rustdoc warnings.
+- **`clippy.toml`**: thresholds, `doc-valid-idents`, and the `allow-*-in-tests`
+  keys. Clippy reads the MSRV from `rust-version`; set `msrv` only when it must
+  differ.
 
-This skill's preferred suppression form uses features stabilized in recent
-Rust:
+A starter table for new projects is in `references/project-setup.md`.
 
-| Construct | Approx. floor | Older MSRV / Cargo fallback |
+## 2. Toolchain floors
+
+| Construct | Floor | Fallback on an older MSRV |
 |---|---|---|
-| `#[expect(...)]` and lint `reason = "..."` | Rust **1.81** | `#[allow(...)]` with a short adjacent comment |
-| Manifest `[lints]` / `[workspace.lints]` | Cargo **1.74+** | Crate-root `#![deny(...)]` / `#![warn(...)]` attributes, or lint flags in the verification command; upgrade Cargo when possible |
+| `#[expect(...)]`, lint `reason = "..."` | Rust 1.81 | `#[allow(...)]` with an adjacent comment |
+| Manifest `[lints]` and `[workspace.lints]` | Cargo 1.74 | Crate-root `#![warn(...)]` / `#![deny(...)]` or lint flags in the verification command |
+| TOML 1.1 manifest syntax (newlines or trailing commas in inline tables) | Cargo 1.94 | Single-line inline tables |
+| Member `{ workspace = true, default-features = false }` | Cargo 1.99, edition 2024 member | `default-features = false` in `[workspace.dependencies]` |
+| `raw_borrows_via_references` lint | Rust 1.99 | Omit; older compilers report an unknown lint |
 
-Note: package-level `[lints]` and `[workspace.lints]` stabilized together in
-Cargo 1.74. On older Cargo, a package `[lints]` table is not a valid fallback.
+Do not introduce syntax the declared MSRV rejects; keep the intent and report
+the limitation.
 
-If the package MSRV is older than the skill floor, keep the same intent with
-syntax the MSRV compiler accepts. Do not introduce 1.81-only attributes into a
-crate that must build on older toolchains.
+## 3. Ratchet
 
-## 3. Lint structure
+Tighten in phases, enforcing in runtime code first and widening to tests once
+the runtime surface is clean:
 
-Layered architecture:
+1. Core rustc and rustdoc lints: `unsafe_code` when desired,
+   `rust_2018_idioms`, `unused_qualifications`, `unreachable_pub`, intra-doc
+   link lints.
+2. Clippy denials that mechanize hard rules: `dbg_macro`, `todo`,
+   `unimplemented`, `unwrap_used`, `expect_used`, `panic`,
+   `allow_attributes_without_reason`; with `unsafe` in scope,
+   `undocumented_unsafe_blocks` and `multiple_unsafe_ops_per_block`.
+3. Raise selected warn-level lints to deny only after real signal and with a
+   cleanup path.
+4. Trial individual `nursery` or `restriction` lints in focused modules before
+   any repository-wide change.
 
-- **Manifest-level** (`[lints]` or `[workspace.lints]`): source of truth for
-  lint policy.
-- **Inheritance** (`[lints] workspace = true`): expected for every new workspace
-  member when the workspace defines `[workspace.lints]`, unless an explicit
-  exception is approved.
-- **Verification/CI-level** (`cargo clippy ... -- -D warnings`,
-  `RUSTDOCFLAGS=-D warnings`): promotes warnings to hard failures in canonical
-  verification and must be preserved by CI once it exists.
-- **`clippy.toml`**: Clippy configuration knobs (MSRV, threshold overrides,
-  doc-valid-idents, `allow-*-in-tests`).
+When raising a lint to deny, make sure canonical verification and CI enforce it
+and the migration cost is known. Never weaken an existing lint floor without
+explicit approval (see `SKILL.md`).
 
-### Lint rings
+## 4. Suppressions and test exceptions
 
-Lints are tightened in phases (the "ratchet" strategy):
+- Scope every suppression as narrowly as possible and give it a reason.
+  Prefer `#[expect]`, which fails once the lint no longer fires; use `#[allow]`
+  when the lint fires only on some targets or feature rows.
+- Acceptable reasons: an upstream false positive, a compiler or Clippy
+  limitation, a known migration path with a cleanup plan, or a library API that
+  intentionally takes a shape Clippy dislikes.
+- Fix the shape instead of silencing `too_many_arguments`, clone lints, or docs
+  lints (see `references/drift-control.md`). Never casually suppress
+  correctness or safety lints.
+- Package lints apply to every target. Test-only panics and unwraps need the
+  `allow-unwrap-in-tests`, `allow-expect-in-tests`, `allow-panic-in-tests`, and
+  `allow-dbg-in-tests` keys. They cover `#[test]` functions and items under
+  `#[cfg(test)]`, not plain helper functions in `tests/`; mark a shared helper
+  module with `#![cfg(test)]`. Do not claim tests are exempt without checking
+  these keys and the lint table.
 
-1. **Phase 1**: Core `rust` and `rustdoc` lints (`unsafe_code` when desired,
-   `elided_lifetimes_in_paths`, `rust_2018_idioms`, `unused_*`, intra-doc link
-   lints).
-2. **Phase 2**: Production-code Clippy denials that match stated hard rules:
-   - `dbg_macro`, `expect_used`, `todo`, `unimplemented`, `unwrap_used`,
-     `panic`
-   - when `unsafe` is in scope: `undocumented_unsafe_blocks`,
-     `multiple_unsafe_ops_per_block`
-3. **Phase 3**: Tighten selected warning-level lints to deny only after real
-   signal and a cleanup path.
-4. **Phase 4**: Trial individual nursery/restriction lints in focused modules
-   before any repo-wide ratchet. Never enable those groups wholesale.
+## 5. Groups
 
-Enforce in runtime code first, then widen to tests once the runtime surface is
-clean.
-
-### Test exceptions
-
-Package lints apply to all targets unless Clippy knobs say otherwise. For
-intentional test-only panics/unwraps, set in `clippy.toml` as needed:
-
-```toml
-allow-unwrap-in-tests = true
-allow-expect-in-tests = true
-allow-panic-in-tests = true
-```
-
-Do not claim tests are exempt without checking these knobs and the package lint
-table.
-
-## 4. Skill policy
-
-- Default to Clippy's standard groups plus the repository's explicit denials
-  unless the project already has a stricter, documented standard.
-- Tighten lint levels incrementally, one lint or one module at a time, based on
-  real signal.
-- Prefer mechanical enforcement of hard rules stated in the skill (`panic`,
-  `unwrap_used`, SAFETY comments) over review-only hope.
-- Treat lint changes as part of the maintenance contract: if a lint is raised to
-  deny, make sure canonical verification (and future CI) enforce it and the
-  migration cost is known.
-- Do not weaken an existing repository lint floor without an explicit operator
-  decision.
-
-## 5. Allowed exceptions
-
-- A global `pedantic` setting is acceptable as deliberate repository policy.
-- Do not newly enable the complete `nursery` or `restriction` group. Cherry-pick
-  individual lints only, with operator-approved policy and measured signal.
-- When the repository already deliberately enables one of these groups,
-  preserve its documented contract unless the task is lint-policy repair.
-  Surface contradictory, unstable, or excessively noisy outcomes instead of
-  silently overriding repository policy.
-- A temporary `allow`/`expect` is acceptable for an upstream false positive, a
-  compiler or Clippy limitation, or a known migration path, with justification
-  and cleanup plan.
-- Library APIs that intentionally expose patterns Clippy dislikes may need
-  targeted suppression, but correctness or safety lints should not be weakened
-  casually.
+- Default to Clippy's standard groups plus the repository's explicit denials.
+- `clippy::correctness` is deny-by-default for a reason; do not allow it.
+- `clippy::pedantic` is a legitimate repository choice; enabling it means
+  accepting targeted, reasoned `expect`s.
+- Never enable `clippy::restriction` as a whole: its lints contradict each
+  other and trip `blanket_clippy_restriction_lints`. Cherry-pick.
+- Treat `clippy::nursery` as experimental; cherry-pick only.
+- When a repository already enables one of these groups deliberately, keep its
+  contract and surface noisy or contradictory results instead of overriding it.
