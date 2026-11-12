@@ -41,9 +41,18 @@ resolution. Test commands are in `references/testing.md`.
 
 On Cargo 1.97 or newer, `CARGO_BUILD_WARNINGS=deny` denies rustc, Clippy, and
 rustdoc warnings in one setting; older Cargo ignores it, so MSRV rows keep
-`-D warnings`. Make mass or mechanical rewrites with syntax-aware tools
-(`cargo fix`, `cargo clippy --fix -p <package>`, rust-analyzer renames), then
-audit the diff.
+`-D warnings`. From Cargo 1.100 it is also the only setting that fails on
+Cargo's own lints (`cargo::unused_dependencies`,
+`cargo::missing_lints_inheritance`, and the rest): `-D warnings` and
+`RUSTDOCFLAGS` never reach them, so a green `cargo clippy -- -D warnings`
+proves nothing about them. Read Cargo's lint warnings on the rows you run; one
+your change introduces is a finding to fix. `unused_dependencies` checks only
+the selected packages, never `[dev-dependencies]`, and stays silent for
+`[dependencies]` under a narrowed target selection such as `--bin <name>`.
+
+Make mass or mechanical rewrites with syntax-aware tools (`cargo fix`,
+`cargo clippy --fix -p <package>`, rust-analyzer renames), then audit the
+diff.
 
 ## 3. Minimum evidence
 

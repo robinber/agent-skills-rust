@@ -26,6 +26,15 @@ Contents: 1. Error design · 2. Never swallow failures · 3. Panic contract ·
   punctuation.
 - Prefer typed variants over string-only `bail!` when callers or an exit-code
   map must distinguish failures.
+- When an operation cannot fail but a signature demands an error type (a
+  trait's `Error` or `Err`), use an uninhabited one, never a unit or
+  placeholder error: `!` when the MSRV is 1.100 or newer,
+  `std::convert::Infallible` otherwise. From 1.100 they are one type, so
+  changing the spelling is not an API change; std prefers `!` and may deprecate
+  `Infallible`. Replacing a public hand-written empty enum with either is a
+  semver-breaking type change. Callers destructure with
+  `let Ok(value) = result;` (1.82) instead of `unwrap()`, so the code stops
+  compiling if the operation ever becomes fallible.
 - Document `# Errors` on public fallible functions.
 - Never include secrets in `Display` or `Debug` output.
 - Mark public error enums `#[non_exhaustive]` when new failure modes are

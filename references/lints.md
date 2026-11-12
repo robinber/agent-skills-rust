@@ -7,12 +7,20 @@ Contents: 1. Where policy lives · 2. Toolchain floors · 3. Ratchet ·
 
 - **Manifest** (`[lints]` or `[workspace.lints]`): the source of truth. Every
   workspace member inherits with `[lints] workspace = true` unless an approved
-  exception exists. Lint groups need a lower `priority` than individual lints
+  exception exists; an empty `[lints]` table makes that exception explicit.
+  Lint groups need a lower `priority` than individual lints
   (for example `{ level = "warn", priority = -1 }`), or Clippy's
   `lint_groups_priority` rejects the table.
 - **Verification and CI** (`cargo clippy ... -- -D warnings`,
   `RUSTDOCFLAGS="-D warnings"`): promote warnings to failures. Preserve them in
   CI once they exist. `RUSTFLAGS` does not affect rustdoc warnings.
+- **Cargo's own lints** (`cargo::*`, Cargo 1.100): manifest and dependency
+  checks such as `unused_dependencies` and `missing_lints_inheritance`. They
+  warn by default with no configuration; a level changes in `[lints.cargo]` or
+  `[workspace.lints.cargo]`, keyed without the `cargo::` prefix. `-D warnings`
+  and `RUSTDOCFLAGS` are rustc and rustdoc flags and never reach them; only
+  `CARGO_BUILD_WARNINGS=deny` turns them into failures. Fix what they report
+  rather than lowering the level.
 - **`clippy.toml`**: thresholds, `doc-valid-idents`, and the `allow-*-in-tests`
   keys. Clippy reads the MSRV from `rust-version`; set `msrv` only when it must
   differ.
@@ -28,6 +36,7 @@ A starter table for new projects is in `references/project-setup.md`.
 | TOML 1.1 manifest syntax (newlines or trailing commas in inline tables) | Cargo 1.94 | Single-line inline tables |
 | Member `{ workspace = true, default-features = false }` | Cargo 1.99, edition 2024 member | `default-features = false` in `[workspace.dependencies]` |
 | `raw_borrows_via_references` lint | Rust 1.99 | Omit; older compilers report an unknown lint |
+| `cargo::` lints and the `[lints.cargo]` table | Cargo 1.100 | Omit the table: Cargo 1.79 to 1.99 ignores it with an "unused manifest key" warning, and Cargo 1.78 or older rejects the whole manifest. Find unused dependencies with `cargo machete` or `cargo shear` |
 
 Do not introduce syntax the declared MSRV rejects; keep the intent and report
 the limitation.

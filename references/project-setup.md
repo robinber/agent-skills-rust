@@ -115,6 +115,14 @@ multiple_unsafe_ops_per_block = "deny"
 - Drop `missing_docs` for crates that expose no public API.
 - Binary crates may add the allow-by-default `dead_code_pub_in_binary` lint
   (Rust 1.97) to catch unused `pub` items.
+- Cargo's own lints (Cargo 1.100) need no table: `unused_dependencies`,
+  `missing_lints_inheritance`, and the other defaults already warn, and CI
+  promotes them with `CARGO_BUILD_WARNINGS=deny` (section 5). Add
+  `[workspace.lints.cargo]` only to change a level, and only when every Cargo
+  that reads the manifest, including the MSRV row, is 1.100 or newer (floors
+  in `references/lints.md`). Keep those levels at `warn`: Cargo lints run on
+  every build, so `deny` fails a local build as soon as a dependency is added
+  before its first use.
 
 Allow test-only panics in `clippy.toml`. Clippy reads `rust-version` from the
 manifest, so do not duplicate it as `msrv`. These keys cover `#[test]`
@@ -145,6 +153,24 @@ allow-dbg-in-tests = true
   allowlist, deny unknown registries and git sources, set
   `advisories.unsound = "all"`, and add an empty `[bans.std-replacements]`
   table (cargo-deny 0.20+) to flag crates that std replaces.
+- Add a dependency cooldown to the repository's `.cargo/config.toml`
+  (Cargo 1.100):
+
+```toml
+[registry]
+global-min-publish-age = "7 days"
+```
+
+  The resolver then ignores versions published more recently than that unless
+  `Cargo.lock` already holds them, so `cargo add` and `cargo update` do not
+  pick up a release in the hours or days before a compromise is detected and
+  yanked. Exempt a registry the team publishes to with
+  `registries.<name>.min-publish-age = "0"`. The cooldown is a mitigation, not
+  a gate: older Cargo ignores the key, a version or registry without a
+  recorded publish time is not filtered, and git, path, and vendored sources
+  are out of scope. It complements the committed lockfile, `--locked` in CI,
+  and `cargo deny`; it replaces none of them. The rules for working under a
+  cooldown are in `references/dependencies-release.md`.
 
 ## 5. CI baseline
 
@@ -165,7 +191,9 @@ cargo deny check
 Add a Miri job for crates that contain `unsafe` and `cargo semver-checks` for
 published libraries. On Cargo 1.97 or newer, `CARGO_BUILD_WARNINGS=deny`
 denies rustc, Clippy, and rustdoc warnings in one setting; older Cargo ignores
-it, so keep `-D warnings` on MSRV rows. When the suite runs under nextest, keep
+it, so keep `-D warnings` on MSRV rows. Set it for the whole job on stable
+rows: from Cargo 1.100 it is the only setting that fails on Cargo's own lints,
+which `-D warnings` never sees. When the suite runs under nextest, keep
 a separate `cargo test --doc` step because nextest does not run doctests.
 
 ## 6. Library documentation
