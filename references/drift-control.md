@@ -44,8 +44,10 @@ generated code, vendor trees, or intentionally large tables).
 | Function > 80 LOC or deeply nested | Do not add another branch without first considering extraction. |
 | Module owns unrelated responsibilities | New behavior should land in the narrower responsibility, not the broad module. |
 
-Do not refactor unrelated code just to satisfy a number. The rule is about
-stopping additional drift on the surface you are already touching.
+Count production lines: an inline `#[cfg(test)]` module does not make a file a
+pressure zone. Do not refactor unrelated code just to satisfy a number. The
+rule is about stopping additional drift on the surface you are already
+touching.
 
 Correctness and safety invariants remain hard regardless of profile overrides.
 
@@ -56,8 +58,6 @@ Correctness and safety invariants remain hard regardless of profile overrides.
   already exists).
 - Clippy's `too-many-arguments-threshold` is a looser mechanical backstop, not a
   license to ignore the default profile.
-- Avoid boolean parameters in public APIs unless the name at the call site is
-  self-evident. Prefer a small enum for policy choices.
 - New public types must describe ownership, fallibility, and caller-visible
   invariants in rustdoc.
 - If a function's arguments cluster naturally, name the cluster and make it a
@@ -90,37 +90,27 @@ regression test that fails against the rejected one. Never preserve both behind
 a flag or a parameter, and never assume the copy you found first is the correct
 one.
 
+When callers, stored data, or a wire format depend on the behavior you would
+reject, unifying is no longer the smallest coherent change: report the
+divergence and get approval before changing either copy.
+
 If `AGENTS.md` lists domain-specific duplication hotspots, search those first.
 
 ## 5. Suppression gates
 
-New `#[allow]` / `#[expect]` attributes require:
-
-- the narrowest possible scope;
-- a justification (`reason = "..."` on Rust 1.81+; otherwise an adjacent comment
-  on older MSRV);
-- no broad lint-group suppression unless the user approves it or a migration
-  note already exists;
-- a cleanup path for temporary suppressions.
-
-Prefer fixing the API shape over silencing `too_many_arguments`, fixing the
-ownership shape over silencing clone-related lints, and documenting the public
-contract over silencing docs lints.
+New `#[allow]` / `#[expect]` attributes follow section 4 of
+`references/lints.md`. In addition, do not suppress a whole lint group unless
+the user approves it or a migration note already exists, and give every
+temporary suppression a cleanup path.
 
 ## 6. Test gates
 
 When touching critical logic, add or update focused tests for the behavior you
-changed. Critical surfaces typically include:
-
-- input parsing and validation;
-- planning, scheduling, and policy decisions;
-- capacity, budget, and resource accounting;
-- deterministic reports, metrics, and checksums;
-- backend adapters and I/O boundary error handling;
-- command dispatch and exit-code behavior;
-- any module that owns safety invariants or `unsafe` encapsulation.
-
-If `AGENTS.md` names project-critical surfaces, treat those as the primary list.
+changed. Critical surfaces are the ones `AGENTS.md` names, or by default input
+parsing and validation, planning and policy decisions, capacity and resource
+accounting, deterministic reports and checksums, I/O boundary error handling,
+command dispatch and exit codes, and any module that owns safety invariants or
+`unsafe` encapsulation.
 
 If tests are impractical in the current turn, state the remaining gap and run
 the narrowest command that still exercises the touched path.

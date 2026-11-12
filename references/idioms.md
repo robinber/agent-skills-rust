@@ -10,13 +10,14 @@ Contents: 1. Modern std over legacy crates · 2. Ownership in signatures ·
 ## 1. Modern std over legacy crates
 
 Use the std facility when the declared `rust-version` allows it, and never use
-an API or syntax newer than that MSRV. Clippy's `incompatible_msrv` flags
-too-new library items but not syntax. Modernize code you touch, not unrelated
-code.
+an API or syntax newer than that MSRV. Clippy's `incompatible_msrv` flags many
+too-new library items, but not syntax, trait bounds, or test code; only a
+build on the MSRV toolchain proves compatibility. Modernize code you touch,
+not unrelated code.
 
 | Instead of | Prefer | Since |
 |---|---|---|
-| `lazy_static!`, `once_cell::sync::Lazy` | `std::sync::LazyLock` | 1.80 |
+| `lazy_static!`, `once_cell::sync::Lazy` (with std; `no_std` keeps `once_cell`) | `std::sync::LazyLock` | 1.80 |
 | `once_cell::sync::OnceCell` with infallible init (`get_or_try_init` is unstable) | `std::sync::OnceLock` | 1.70 |
 | `once_cell::unsync::Lazy` | `std::cell::LazyCell` | 1.80 |
 | `atty` | `std::io::IsTerminal` | 1.70 |
@@ -29,10 +30,10 @@ code.
 | `std::convert::Infallible` or an empty enum as the "cannot happen" type in new code | the never type `!` (`Infallible` is its alias from 1.100) | 1.100 |
 | `scopeguard::guard`, `defer!` (cleanup that always runs) | `std::mem::DropGuard` (`core::mem::DropGuard` in `no_std`) | 1.100 |
 | parsing or unwrapping inside an arm after a guard | `if let` guards (`Some(s) if let Ok(n) = s.parse() =>`) | 1.95 |
-| `retain` plus clones or index loops to remove and collect | `extract_if` | 1.87 |
+| `retain` plus clones or index loops to remove and collect | `extract_if` | 1.87 (`Vec`, `LinkedList`), 1.88 (hash collections), 1.91 (B-tree collections) |
 | `Atomic*::fetch_update` (deprecated in 1.99) | `try_update`, or `update` when the closure cannot fail | 1.95 |
-| `parking_lot::Mutex` chosen only for speed | `std::sync::Mutex` (futex-based) | 1.62 |
-| `crossbeam-channel` with a single consumer | `std::sync::mpsc` | 1.67 |
+| `parking_lot::Mutex` chosen only for speed, not for fairness, timed or mapped guards, or the absence of poisoning | `std::sync::Mutex` (futex-based on Linux since 1.62 and on Windows since 1.78) | 1.62 |
+| `crossbeam-channel` with a single consumer and no `select!`, timer channels, or send timeouts | `std::sync::mpsc` | 1.67 |
 | `async-trait` with static dispatch only | native `async fn` in traits | 1.75 |
 | `F: Fn() -> Fut` bounds, unless the future must be `Send` (that needs unstable return type notation) | async closures and `AsyncFn*` bounds | 1.85 |
 | `ptr::addr_of!` | `&raw const`, `&raw mut` | 1.82 |
@@ -44,7 +45,7 @@ code.
 | `os_pipe` | `std::io::pipe` | 1.87 |
 | `fs2` / `fs4` file locks | `File::lock`, `File::try_lock` | 1.89 |
 | `cfg-if` | `cfg_select!` | 1.95 |
-| `assert!(matches!(..))` | `assert_matches!` (not in the prelude: `use std::assert_matches;`) | 1.96 |
+| `assert!(matches!(..))` | `assert_matches!` (not in the prelude: `use std::assert_matches;`; the value must implement `Debug`) | 1.96 |
 | `structopt` | `clap` with derive | — |
 
 Keep `async-trait` or boxed futures when the trait must be usable as
@@ -106,7 +107,9 @@ Translate the design, not the syntax:
   are.
 - Do not create a trait per struct with `Arc<dyn Trait>` just for mocking.
   Start concrete, move to generics when a second implementation exists, and use
-  `dyn` when heterogeneity or code size requires it.
+  `dyn` when heterogeneity or code size requires it. In the report, name every
+  new trait or generic parameter that has a single implementation and say why
+  it exists.
 - Do not implement `Deref` to simulate inheritance; `Deref` is for smart
   pointers.
 - Keep `Arc<Mutex<T>>`, `Rc<RefCell<T>>`, and `Box<T>` out of public

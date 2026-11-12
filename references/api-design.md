@@ -1,7 +1,7 @@
 # API design
 
 Contents: 1. Shape · 2. Cargo features · 3. Async traits and auto traits ·
-4. Semver and compatibility · 5. Restraint
+4. Semver and compatibility
 
 Follow the
 [Rust API Guidelines checklist](https://rust-lang.github.io/api-guidelines/checklist.html);
@@ -11,11 +11,15 @@ the rules below are the ones most often missed.
 
 - Expose the smallest surface that supports the use case. In binaries and
   application crates, default to `pub(crate)`.
-- Give each public item one public path. After moving an item, do not leave a
-  `pub use` alias behind, and never `pub use module::*`.
+- Give each public item one public path, and do not `pub use module::*`
+  outside a deliberate prelude. After moving an item in unpublished code, leave
+  no `pub use` alias behind; in a published or reused crate, keep a
+  `#[deprecated]` re-export at the old path, because removing it is a breaking
+  change.
 - Encode meaning in types: newtypes for distinct quantities and identifiers,
   enums for policy choices instead of `bool` parameters whose meaning is
-  invisible at the call site.
+  invisible at the call site. Private helpers may take a `bool` or a primitive
+  when the scope is local and the intent obvious.
 - Keep fields private when future layout changes should not break callers;
   expose constructors and accessors.
 - Validate at construction (see `references/correctness-safety.md`). For
@@ -26,8 +30,8 @@ the rules below are the ones most often missed.
 - Use a builder when construction has optional knobs, validation, or
   order-sensitive setup.
 - Put trait bounds on the `impl` blocks that need them, not on the type
-  definition; `struct Cache<K: Hash>` spreads the bound to every use and makes
-  relaxing it a breaking change.
+  definition; `struct Cache<K: Hash>` spreads the bound to every use, and
+  adding one later is a breaking change.
 - Implement common traits when semantically correct (`Debug`, `Clone`, `Eq`,
   `Hash`, `Default`, `From`, `AsRef`). Every public type should implement
   `Debug`; for secret-bearing types, write a redacting `Debug` instead of
@@ -39,8 +43,8 @@ the rules below are the ones most often missed.
   exhaustively, exhaustive.
 - Seal traits that downstream crates should not implement.
 - Accept ranges in public APIs as `impl RangeBounds<T>` rather than a concrete
-  `std::ops::Range<T>`; new range types are planned and this signature stays
-  compatible.
+  `std::ops::Range<T>`; the `core::range` types (1.95, 1.96) coexist with the
+  legacy ones, and this signature accepts both.
 
 ## 2. Cargo features
 
@@ -70,7 +74,7 @@ future, and rustc warns about it (`async_fn_in_trait`). Choose deliberately:
 | Multi-threaded executors | methods returning `impl Future<Output = T> + Send` |
 | Single-threaded or embedded executors | `!Send` futures, with the executor assumption documented |
 | Both | a `Send` variant generated with `trait_variant::make` |
-| Dynamic dispatch | an object-safe design with boxed futures |
+| Dynamic dispatch | a dyn-compatible (formerly "object-safe") design with boxed futures |
 
 `Send`, `Sync`, and `Unpin` are public contracts. An `Rc` or a non-`Send` guard
 held across `.await` silently makes a future `!Send`, and only downstream code
@@ -98,7 +102,7 @@ internal binaries, review caller impact without semver tooling. Check for:
 
 - removed or renamed public items, reduced visibility, changed signatures;
 - removed or renamed features, changed defaults, newly invalid combinations;
-- trait method additions, object-safety changes, downstream impl breakage;
+- trait method additions, dyn-compatibility changes, downstream impl breakage;
 - auto-trait changes (`Send`, `Sync`, `Unpin`);
 - stronger generic or lifetime bounds, changed associated types;
 - variants added to exhaustive public enums; `#[non_exhaustive]` added or
@@ -117,17 +121,8 @@ practical:
 cargo semver-checks --package <package>
 ```
 
-Its pass is supporting evidence, not proof that semantic, layout, macro, or
-feature concerns are covered. Breaking a published or reused API needs explicit
-approval (see `SKILL.md`).
-
-## 5. Restraint
-
-- Prefer the smallest coherent change that preserves correct local design.
-- Do not introduce a trait, generic parameter, builder, dependency, feature, or
-  crate for hypothetical reuse. Abstract stable shared knowledge or a real
-  boundary, not similar-looking syntax.
-- Private helpers may use `bool` or primitive parameters when the scope is
-  local and the intent obvious.
-- Keep unrelated cleanup out of the patch unless the requested change needs it
-  to be safe and understandable.
+It compares against the latest crates.io release by default; for an
+unpublished crate, pass `--baseline-rev <rev>`. Its pass is supporting
+evidence, not proof that semantic, layout, macro, or feature concerns are
+covered. Breaking a published or reused API needs explicit approval (see
+`SKILL.md`).

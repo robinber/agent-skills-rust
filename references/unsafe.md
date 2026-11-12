@@ -30,13 +30,16 @@ its own approval. Approval never waives the rules below.
 3. Give every `unsafe` block a `// SAFETY:` comment with the local proof: which
    pointers are valid, aligned, initialized, and non-aliasing; which lifetimes
    or ownership transfers justify the operation; which external contracts are
-   assumed; why concurrent access is safe.
+   assumed; why concurrent access is safe. When the callee documents `# Safety`
+   requirements, discharge each of its clauses, not a neighbouring property.
 4. Document `# Safety` preconditions on every public `unsafe fn`. Mark a
    function `unsafe` only when misuse can cause undefined behavior, not merely
    because it is dangerous. An `unsafe impl` states which trait invariants hold
    and why safe callers cannot break them.
 5. Expose a small safe API rather than raw unsafe operations.
-6. Never use `static mut`; use atomics, `OnceLock`, or a lock.
+6. Avoid `static mut`; use atomics, `OnceLock`, or a lock. Where one is
+   unavoidable (`no_std`, interrupt, or C-ABI globals), never take a reference
+   to it: go through `&raw const` or `&raw mut`.
 7. Never round-trip pointers through integers with `as`. Manipulate pointer
    bits with `addr`, `with_addr`, and `map_addr` (1.84); use
    `expose_provenance` and `with_exposed_provenance` only for FFI or MMIO
@@ -56,6 +59,10 @@ pub fn ascii_prefix(bytes: &[u8]) -> &str {
     unsafe { std::str::from_utf8_unchecked(&bytes[..end]) }
 }
 ```
+
+The example shows the shape of a proof, not a reason to write `unsafe`:
+`str::from_utf8` does the same safely, and rule 1 would require a measurement
+before preferring the unchecked call.
 
 ## 3. Edition 2024
 
@@ -81,8 +88,9 @@ pub fn ascii_prefix(bytes: &[u8]) -> &str {
   must be sound. `ManuallyDrop`, raw ownership transfer, and custom
   deallocation need an exactly-once release proof (see
   `references/ownership-raii.md`).
-- `unsafe impl Send` or `unsafe impl Sync` is new unsafe; see
-  `references/concurrency.md`.
+- `unsafe impl Send` or `unsafe impl Sync` is new unsafe: it needs the
+  approval rule in `SKILL.md` and a local proof. On a generic type, bound the
+  parameter (`T: Send`, `T: Sync`) unless the proof says why it is not needed.
 
 ## 5. FFI contract
 
@@ -94,8 +102,9 @@ For every foreign boundary, record and verify:
   representation and a valid-value set matching the foreign contract.
   `repr(C)` does not repair non-FFI-safe nested fields; `repr(transparent)` is
   only as FFI-safe as its field. Keep `improper_ctypes` and
-  `improper_ctypes_definitions` passing and match integer widths to the
-  foreign declaration.
+  `improper_ctypes_definitions` passing, declare foreign integers with the
+  `core::ffi::c_*` types, and never transmute a foreign integer into a Rust
+  `enum` or `bool`.
 - **Validity**: which pointers may be null or dangling, and how long each must
   stay valid.
 - **Strings and buffers**: length, encoding, and termination on both sides.
@@ -106,7 +115,9 @@ For every foreign boundary, record and verify:
   aborts the process; use `catch_unwind` when an abort is unacceptable, and
   `extern "C-unwind"` when unwinding across the boundary is intended. Foreign
   exceptions unwinding into an `extern "C"` function remain undefined
-  behavior.
+  behavior. Give every entry point that foreign code calls (a callback, an
+  Objective-C method implementation) its own backstop, and check out-of-band
+  arguments (null, sentinel event types) before dereferencing anything.
 - **Errors**: how foreign error codes or `errno` map to typed Rust errors.
 
 Generated bindings and vendored stubs may contain bulk `unsafe`; isolate them

@@ -18,6 +18,10 @@ processes
 - Treat the failure path as a feature: clear message, correct stream, correct
   exit code.
 - Handle `BrokenPipe` on stdout gracefully; a closed pager is not a crash.
+  `println!` panics when stdout is closed, so write with `writeln!` to a locked
+  stdout and treat `BrokenPipe` as normal termination.
+- Keep output deterministic: `HashMap` and `read_dir` order is unspecified, so
+  sort or use a `BTreeMap` before printing.
 - Define signal and shutdown behavior for long-running processes: which cleanup
   runs and which exit code results.
 - Cover argument handling, streams, and exit codes with integration tests;
@@ -27,8 +31,9 @@ processes
 
 - Libraries emit events but never install a global subscriber or logger (no
   `tracing_subscriber::fmt().init()`, `set_global_default`, or
-  `env_logger::init()` in library or test-helper code); a second
-  initialization panics, and the library overrides the application's choice.
+  `env_logger::init()` in library or test-helper code): a second `init()`
+  panics, `set_global_default` returns an error, and either way the library
+  overrides the application's choice.
 - Log with structured fields (`info!(path = %path.display(), "loaded")`)
   rather than preformatted strings. Record untrusted values with `?` so control
   characters are escaped.
@@ -47,6 +52,8 @@ processes
 - Environment variables and config files are acceptable only as a documented
   project mechanism with permissions, lifetime, and redaction rules. Never log
   or `Debug`-print their contents.
+- Redact values, not classes: an error or log line still says which setting,
+  file, or provider error category failed, so the user can act on it.
 
 ## 4. Filesystem and child processes
 
@@ -57,7 +64,9 @@ processes
   file exclusively in the target directory with restrictive permissions, sync
   it, replace with a platform-supported atomic rename (`fs::rename` semantics
   vary by platform), and sync the parent directory when the new entry must
-  survive a crash.
+  survive a crash. Decide what replacement does to a symlinked target and to
+  the old permissions: a rename replaces the link itself, and the new file
+  keeps the temporary file's mode.
 - Clean up temporary files and partial state on error paths.
 - Accept external paths as `OsStr` or `Path`; never assume UTF-8.
 - Build child-process argv directly; never route interpolated input through a

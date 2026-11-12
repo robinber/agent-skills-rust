@@ -65,14 +65,15 @@ explicit approval (see `SKILL.md`).
 ## 4. Suppressions and test exceptions
 
 - Scope every suppression as narrowly as possible and give it a reason.
-  Prefer `#[expect]`, which fails once the lint no longer fires; use `#[allow]`
-  when the lint fires only on some targets or feature rows.
+  Prefer `#[expect]`, which warns (`unfulfilled_lint_expectations`) once the
+  lint no longer fires; use `#[allow]` when the lint fires only on some targets
+  or feature rows.
 - Acceptable reasons: an upstream false positive, a compiler or Clippy
   limitation, a known migration path with a cleanup plan, or a library API that
   intentionally takes a shape Clippy dislikes.
-- Fix the shape instead of silencing `too_many_arguments`, clone lints, or docs
-  lints (see `references/drift-control.md`). Never casually suppress
-  correctness or safety lints.
+- Fix the shape instead of silencing: the signature for `too_many_arguments`,
+  the ownership for clone lints, the public contract for docs lints. Never
+  casually suppress correctness or safety lints.
 - Package lints apply to every target. Test-only panics and unwraps need the
   `allow-unwrap-in-tests`, `allow-expect-in-tests`, `allow-panic-in-tests`, and
   `allow-dbg-in-tests` keys. They cover `#[test]` functions and items under

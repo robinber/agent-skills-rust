@@ -14,17 +14,8 @@ filter. Put libtest options after `--`.
 
 ```bash
 cargo test -p <package> <target-selection> <feature-selection>
-```
-
-```bash
 cargo test -p <package> <target-selection> <feature-selection> <test-filter>
-```
-
-```bash
 cargo test -p <package> <target-selection> <feature-selection> <test-filter> -- <libtest-options>
-```
-
-```bash
 cargo test -p <package> --doc <feature-selection>
 ```
 
@@ -43,10 +34,16 @@ Do not place feature options after `<test-filter>`.
 - Prefer direct function/module tests over process setup unless argument parsing,
   streams, exit codes, environment, or process wiring is the behavior under
   test.
-- Add a regression that fails for the original bug when fixing a defect.
+- Add a regression that fails for the original bug when fixing a defect. When
+  none is possible (hardware, UI, a foreign runtime), say so under **Not
+  covered** instead of leaving the fix silently untested.
 - When a test conflicts with the specification, stop and report it. Never edit,
   special-case, delete, or `#[ignore]` a test, or weaken an assertion, to get a
   green run. Every ignore carries `#[ignore = "reason"]` and is reported.
+- Removing a test for any other reason takes the same care: state which
+  behavior was removed or which test still covers it. A test that disagrees
+  with the documentation is a specification conflict too; never rewrite the
+  docs to match the code and drop the assertion.
 - Confirm the test you claim actually ran. A filter that matches nothing prints
   `0 passed` and still exits 0 (use `-- --exact` for one test); `[[test]]`
   targets whose `required-features` are disabled are skipped silently; and
@@ -66,7 +63,9 @@ platform and feature matrix in `references/workflow.md`.
 - Keep large or machine-specific data outside source control unless the
   repository deliberately versions it.
 - Assert externally meaningful behavior, not a second copy of the
-  implementation.
+  implementation. A test must be able to fail: do not assert that a constant
+  equals itself, recompute the expected value with the code under test, or pin
+  representation details such as pointer identity.
 
 ## 4. Property and adversarial tests
 
@@ -79,7 +78,7 @@ properties with fixed regressions for known edge cases.
 | Parsing, round trips, coalescing, arithmetic | Table-driven tests, then property tests (`proptest`) |
 | Parsers of untrusted input or binary formats | Property tests, then targeted fuzzing (`cargo fuzz`) when risk warrants |
 | Proc macros, type-state APIs, complex bounds | Compile-pass and compile-fail tests (for example `trybuild`) with reviewed diagnostics |
-| Stable textual output or serialized formats | Snapshot tests (`insta`): observe the mismatch first, accept intended changes with `cargo insta accept` (not the interactive `review`), review the diff, never hand-edit snapshots, delete leftover `.snap.new` files |
+| Stable textual output or serialized formats | Snapshot tests (`insta`): observe the mismatch first, accept intended changes with `cargo insta accept` (not the interactive `review`), review the diff, never hand-edit snapshots, delete leftover `.snap.new` and `.pending-snap` files |
 | Performance claims | Before/after benchmark (`criterion`, `divan`) in a relevant profile; do not claim unmeasured speedups |
 | Unsafe memory behavior | Focused safe-API tests and Miri when compatible |
 | Concurrency/cancellation | Deterministic coordination, model testing (`loom`) where practical; see `references/concurrency.md` |

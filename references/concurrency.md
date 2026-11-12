@@ -1,11 +1,13 @@
 # Concurrency and async
 
 Use this reference when touching async runtimes, threads, locks, channels,
-atomics, spawned tasks, blocking pools, or concurrent public contracts.
+atomics, spawned tasks, blocking pools, UI or real-time callbacks, or
+concurrent public contracts.
 
 Contents: 1. Ownership and supervision · 2. Locks and shared state ·
 3. Cancellation and partial commits · 4. Capacity and backpressure ·
-5. Runtimes and blocking work · 6. Atomics and auto traits · 7. Verification
+5. Runtimes and blocking work · 6. Deadline threads and callbacks ·
+7. Atomics and auto traits · 8. Verification
 
 ## 1. Ownership and supervision
 
@@ -13,7 +15,8 @@ Contents: 1. Ownership and supervision · 2. Locks and shared state ·
   cancellation, error propagation, and cleanup. Use a structured owner such as
   `std::thread::scope`, Tokio's `JoinSet`, or `tokio_util`'s `TaskTracker`
   with a `CancellationToken`, rather than dropping a `JoinHandle`.
-- Do not detach work silently when its failure or lifetime affects the caller.
+- Do not detach work silently when its failure or lifetime affects the caller:
+  a panic or error in a spawned task surfaces only through its handle.
 - Define shutdown order: stop intake, signal cancellation, drain or discard by
   policy, await owned work, then release resources.
 - Preserve the first meaningful failure while still cleaning up remaining work.
@@ -36,10 +39,10 @@ Contents: 1. Ownership and supervision · 2. Locks and shared state ·
 - Prefer ownership transfer or message passing over shared mutable state when it
   makes the invariant simpler.
 - Bind a lock guard to a named variable before matching on the protected data.
-  A guard created in a `match` or `while let` scrutinee (or an `if let`
-  scrutinee before edition 2024) lives until the end of the whole statement, so
-  locking again inside an arm deadlocks. Clippy's
-  `significant_drop_in_scrutinee` flags this.
+  A guard created in a `match`, `if let`, or `while let` scrutinee lives
+  through the body, so locking again inside it deadlocks; edition 2024 only
+  releases an `if let` guard before the `else` block. Clippy's nursery lint
+  `significant_drop_in_scrutinee` flags this once enabled.
 - Design for abandoned owners and partial updates. Handle poisoning per the
   panic contract in `references/errors.md`.
 
@@ -75,10 +78,11 @@ Contents: 1. Ownership and supervision · 2. Locks and shared state ·
 
 ## 5. Runtimes and blocking work
 
-- Never call `block_on` or build a runtime from inside async code; it panics or
-  deadlocks. Libraries expose `async fn` and leave the runtime to the
+- Never call `block_on` or build a runtime on an async executor thread; it
+  panics or deadlocks. To reach async code from a synchronous callback inside a
+  runtime, move to a blocking thread first (`spawn_blocking`, then
+  `Handle::block_on`). Libraries expose `async fn` and leave the runtime to the
   application: no `#[tokio::main]` and no hidden runtime in library code.
-
 - Do not run blocking filesystem, CPU-heavy, foreign, or synchronization work on
   an async executor thread unless the runtime explicitly permits it.
 - Use `spawn_blocking` or a dedicated bounded pool when appropriate, and include
@@ -86,21 +90,38 @@ Contents: 1. Ownership and supervision · 2. Locks and shared state ·
 - Remember that cancelling the async waiter may not cancel already-running
   blocking work; design ownership accordingly.
 
-## 6. Atomics and auto traits
+## 6. Deadline threads and callbacks
+
+A UI run loop, an OS event or input callback, and a real-time audio callback
+must return within a deadline. Name these threads and treat them more strictly
+than an executor thread:
+
+- No blocking file I/O, IPC, network call, or unbounded computation on them. A
+  real-time callback also takes no lock, allocates nothing, and logs nothing.
+  Hand the work to another thread through a bounded channel or ring buffer.
+- Derive buffer capacities from rate times duration once the rate is known,
+  never from a fixed element count that silently shrinks at a higher rate.
+- Give every waiting state an exit that the state machine owns: a timeout or a
+  failure edge, not only the success event.
+- Decide what happens when a callback fires while its state is already in use
+  (a nested run loop, a re-entrant `RefCell` borrow): queue, coalesce, or drop,
+  with a bound. Never re-dispatch without one.
+
+## 7. Atomics and auto traits
 
 - Justify every atomic ordering, including `SeqCst`, by naming the
   synchronization relationship it establishes; atomics have no default
-  ordering. Do not use `Relaxed` merely for speed.
+  ordering. `Relaxed` is right for a counter or flag that synchronizes no other
+  memory; do not choose it for speed when the value guards other data.
 - For compare-exchange operations, justify the success and failure orderings
   separately.
 - Prefer locks or channels when the atomic state machine is harder to prove than
   the performance benefit warrants.
 - Review `Send` and `Sync` as public contracts, including captured values,
   futures, trait objects, and FFI handles.
-- Treat `unsafe impl Send` or `unsafe impl Sync` as new unsafe requiring the
-  approval rule in `SKILL.md` and a local proof per `references/unsafe.md`.
+- `unsafe impl Send` or `unsafe impl Sync` follows `references/unsafe.md`.
 
-## 7. Verification
+## 8. Verification
 
 - Use deterministic barriers, channels, notifications, controlled clocks, or
   model checkers instead of sleeps where practical.

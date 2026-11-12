@@ -12,7 +12,8 @@ checks · 4. Publication
   names get registered by attackers, and major versions rename APIs. Add
   dependencies with `cargo add <name>[@<version>] -F <features>`.
 - Read the full `cargo info <name>` output (Cargo 1.82+): a `+deprecated`
-  version suffix, the README, the features, and `rust-version`. `cargo add`
+  version suffix, the features, and `rust-version`. It does not print the
+  README; follow its documentation and repository links for that. `cargo add`
   does not warn about deprecated or tombstone releases.
 - Check RustSec even when the repository configures nothing
   (`cargo deny check advisories` or `cargo audit`). Do not silently add or pin
@@ -39,7 +40,7 @@ Before adding or upgrading, answer proportionally to impact:
 ## 2. Resolution and lockfile
 
 - Never run a bare `cargo update` inside a change; update only what the change
-  needs with `cargo update -p <crate> --precise <version>`.
+  needs with `cargo update <crate> --precise <version>`.
 - Resolve within the declared MSRV: `resolver = "3"` (edition 2024 default) or
   `resolver.incompatible-rust-versions = "fallback"` makes Cargo 1.84+ prefer
   dependency versions compatible with `rust-version`.
@@ -55,7 +56,7 @@ Before adding or upgrading, answer proportionally to impact:
   inside the window, report it and let the user decide (approval rule in
   `SKILL.md`). An approved bypass covers one command and leaves the
   configuration unchanged:
-  `CARGO_RESOLVER_INCOMPATIBLE_PUBLISH_AGE=allow cargo update -p <crate> --precise <version>`.
+  `CARGO_RESOLVER_INCOMPATIBLE_PUBLISH_AGE=allow cargo update <crate> --precise <version>`.
 - A repository without a cooldown is a candidate for the setup in
   `references/project-setup.md`; suggest it rather than adding it unasked.
   Never present a cooldown as proof that a dependency is safe: older Cargo
