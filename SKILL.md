@@ -79,7 +79,8 @@ Get explicit, scoped approval before you:
 
 - add or widen `unsafe`; a task that names an unsafe or FFI surface approves
   only that surface (see `references/unsafe.md`);
-- weaken any lint level, including `unsafe_code`, or relax `deny.toml`;
+- weaken any lint level, including `unsafe_code`, or relax `deny.toml` or a
+  dependency cooldown (`min-publish-age`);
 - change the declared MSRV;
 - make a semver-breaking change to a published or reused API;
 - add a git or wildcard dependency;

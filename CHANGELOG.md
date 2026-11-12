@@ -1,5 +1,38 @@
 # Changelog
 
+## 2.1.0 — 2026-11-12
+
+Rust 1.100 and Cargo 1.100 stabilizations. Each rule names the toolchain floor
+it needs and keeps the earlier guidance below that floor.
+
+- `core::mem::DropGuard` for one-off scope cleanup: a compact example, the
+  guard contract applied to its closure, `DropGuard::dismiss` instead of
+  `mem::forget`, and when a named guard type is still the right tool. It
+  replaces `scopeguard::guard` and `defer!` only; the on-unwind and on-success
+  guards have no std equivalent.
+- Cargo's own lints (`cargo::unused_dependencies`,
+  `cargo::missing_lints_inheritance`): on by default, invisible to
+  `-D warnings` and `RUSTDOCFLAGS`, and failed only by
+  `CARGO_BUILD_WARNINGS=deny`. A new toolchain-floor row records that Cargo
+  1.79 to 1.99 ignores `[lints.cargo]` with a warning and Cargo 1.78 or older
+  rejects the manifest, so the starter policy adds no table by default.
+  `unused_dependencies` is the first signal for unused dependencies, with its
+  documented blind spots (`[dev-dependencies]`, unselected packages, narrowed
+  target selection) and false positives.
+- Never type: `!` for errors that cannot happen when the MSRV is 1.100 or
+  newer, `Infallible` (now its alias) below, and `let Ok(v) = result;` for
+  both. The fallback to `!` in every edition follows the compiler rather than
+  the MSRV; the fix is a type annotation.
+- Dependency cooldown: recommend `registry.global-min-publish-age = "7 days"`
+  for new projects as a mitigation, not a gate, with its limits. Bypassing or
+  shortening a configured cooldown now needs explicit approval.
+
+Checked against the Rust 1.100.0 release notes, the Cargo 1.100 reference,
+RFC 3923, and the standard library sources; the behavior of older Cargo was
+observed on 1.99.1, where the `DropGuard` example was also type-checked and
+run against a copy of its API. Nothing was compiled or run on a 1.100
+toolchain.
+
 ## 2.0.0 — 2026-10-31
 
 Core and structure:

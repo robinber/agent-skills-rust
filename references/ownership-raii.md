@@ -58,6 +58,43 @@ make successful commit or durable persistence depend only on destruction.
   not a universal cleanup guarantee. Skipping destruction may leak a resource;
   it must not permit undefined behavior or invalidate other live values.
 
+For one-off cleanup local to a scope, use `core::mem::DropGuard` when the MSRV
+is 1.100 or newer, instead of a hand-written guard type or `scopeguard::guard`.
+It owns a value, derefs to it, and passes it to the closure when dropped:
+
+```rust
+use std::{fs, io, mem::DropGuard, path::Path};
+
+fn replace_file(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    let tmp = DropGuard::new(path.with_extension("tmp"), |tmp| {
+        // Best-effort cleanup; the error that got us here is the one to report.
+        let _ = fs::remove_file(tmp);
+    });
+    fs::write(&*tmp, bytes)?; // an early return removes the temporary file
+    fs::rename(&*tmp, path)?;
+    DropGuard::dismiss(tmp); // success: the closure never runs
+    Ok(())
+}
+```
+
+- The closure is the destructor, so the contract above applies to it: it is
+  synchronous, bounded, and must not panic. It runs on every exit that drops
+  the guard, including unwinding, and never under `panic = "abort"` or
+  `mem::forget`.
+- Bind the guard to a named variable. `DropGuard::new` is `#[must_use]`, but
+  `let _ = DropGuard::new(..)` satisfies that and runs the cleanup immediately.
+- Cancel with `DropGuard::dismiss(guard)`, an associated function that returns
+  the value and drops the closure without running it. Never cancel with
+  `mem::forget`, which leaks the value and everything the closure captured.
+- Hand the cleanup its state as the guarded value rather than capturing it;
+  use `DropGuard::new((), |()| ..)` when there is none.
+- Write a named `#[must_use]` guard type instead when the guard is returned to
+  callers, stored in a field, or carries lifecycle state: the closure type
+  cannot be named, and a public guard deserves its own documentation.
+- Below MSRV 1.100, keep the existing pattern (a private guard type, or
+  `scopeguard` where it is already a dependency). On any MSRV, `DropGuard` has
+  no on-unwind-only or on-success-only mode.
+
 Review `ManuallyDrop`, raw ownership transfer, and custom deallocation under
 `references/unsafe.md`; RAII does not make an unsafe ownership proof automatic.
 

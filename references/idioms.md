@@ -25,7 +25,9 @@ code.
 | `memoffset` | `std::mem::offset_of!` | 1.77 |
 | `home`, `dirs::home_dir` for the home directory only | `std::env::home_dir` | 1.87 |
 | `as_any()` / `as_super()` helper methods | trait upcasting (`&dyn Sub` to `&dyn Super`) | 1.86 |
-| `unwrap()` on `Result<T, Infallible>` | `let Ok(v) = result;` | 1.82 |
+| `unwrap()` on `Result<T, Infallible>` or `Result<T, !>` | `let Ok(v) = result;` | 1.82 |
+| `std::convert::Infallible` or an empty enum as the "cannot happen" type in new code | the never type `!` (`Infallible` is its alias from 1.100) | 1.100 |
+| `scopeguard::guard`, `defer!` (cleanup that always runs) | `std::mem::DropGuard` (`core::mem::DropGuard` in `no_std`) | 1.100 |
 | parsing or unwrapping inside an arm after a guard | `if let` guards (`Some(s) if let Ok(n) = s.parse() =>`) | 1.95 |
 | `retain` plus clones or index loops to remove and collect | `extract_if` | 1.87 |
 | `Atomic*::fetch_update` (deprecated in 1.99) | `try_update`, or `update` when the closure cannot fail | 1.95 |
@@ -48,6 +50,19 @@ code.
 Keep `async-trait` or boxed futures when the trait must be usable as
 `dyn Trait`. Native `async fn` in a public trait does not promise `Send`; see
 `references/api-design.md`.
+
+`DropGuard` covers only cleanup that always runs. Keep `scopeguard` for
+`guard_on_unwind`, `guard_on_success`, and their `defer_*` macros; the guard
+contract is in `references/ownership-raii.md`.
+
+From Rust 1.100, an unconstrained diverging expression falls back to `!` in
+every edition, not only 2024. This follows the compiler, not `rust-version`:
+edition 2021 or older code that relied on the old `()` fallback, typically
+`f()?;` where `f` is generic over its return type, fails on a 1.100 toolchain
+with a `!: Trait` error. Name the type (`f::<()>()?;`), which compiles on every
+toolchain. Do not pin an older compiler to avoid the error. Once the type is
+named, an `#[allow(dependency_on_unit_never_type_fallback)]` has nothing left
+to silence on any toolchain; remove it with the fix (1.100 removed the lint).
 
 ## 2. Ownership in signatures
 

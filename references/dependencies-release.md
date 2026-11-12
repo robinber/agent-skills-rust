@@ -46,9 +46,33 @@ Before adding or upgrading, answer proportionally to impact:
 - Keep version requirements honest. A lockfile can hide that `"1.0"` actually
   needs a later 1.x API; published libraries can check lower bounds with
   `cargo +nightly update -Zdirect-minimal-versions` followed by a build.
-- Remove dependencies that are no longer used (`cargo machete`, `cargo shear`,
-  or the `unused_crate_dependencies` lint) after checking every feature and
-  target row.
+- Respect a configured dependency cooldown (`registry.global-min-publish-age`
+  or `registries.<name>.min-publish-age`, Cargo 1.100): the resolver ignores
+  versions published inside the window unless `Cargo.lock` already holds them.
+  Without approval, never reach a fresher version by lowering the age, setting
+  `resolver.incompatible-publish-age = "allow"`, editing `Cargo.lock` by hand,
+  or switching to a git source. When the only fix for an advisory is still
+  inside the window, report it and let the user decide (approval rule in
+  `SKILL.md`). An approved bypass covers one command and leaves the
+  configuration unchanged:
+  `CARGO_RESOLVER_INCOMPATIBLE_PUBLISH_AGE=allow cargo update -p <crate> --precise <version>`.
+- A repository without a cooldown is a candidate for the setup in
+  `references/project-setup.md`; suggest it rather than adding it unasked.
+  Never present a cooldown as proof that a dependency is safe: older Cargo
+  ignores it, and it does not cover versions without a recorded publish time
+  or git, path, and vendored sources.
+- Remove dependencies that are no longer used. On Cargo 1.100 or newer the
+  built-in `cargo::unused_dependencies` lint is the first signal, because it
+  comes from the build itself rather than from a scan of the source. It
+  covers `[dependencies]` and `[build-dependencies]` of the selected packages
+  only, so keep `cargo machete`, `cargo shear`, or the
+  `unused_crate_dependencies` lint for `[dev-dependencies]` and for older
+  Cargo. Before removing a flagged dependency, check every feature and target
+  row: one used only behind a feature or a `cfg` becomes optional or
+  target-specific instead, and one listed only to enable a feature or pin the
+  version of a transitive dependency is a documented false positive (for a
+  pin, Cargo's documentation suggests moving it under
+  `[target."cfg(false)".dependencies]`).
 
 ## 3. Advisory checks
 
