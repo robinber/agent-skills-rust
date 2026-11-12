@@ -1,5 +1,61 @@
 # Changelog
 
+## 2.2.0 — 2026-11-12
+
+Corrections and additions from an audit of the references: every checkable
+claim was compared with primary sources or compiled on Rust 1.99.1, and the
+rules were compared with code and history written under the skill.
+
+Corrected:
+
+- `api-design.md`: a bound on a type definition makes adding one later
+  breaking, not relaxing it; a moved item keeps a deprecated re-export in a
+  published crate; the `core::range` types exist; "dyn-compatible" replaces
+  "object-safe"; `cargo semver-checks` needs `--baseline-rev` for unpublished
+  crates.
+- `concurrency.md`: an `if let` scrutinee guard still deadlocks on edition
+  2024; `significant_drop_in_scrutinee` is a nursery lint; `block_on` has a
+  documented bridge from blocking threads; `Relaxed` is correct for plain
+  counters.
+- `errors.md`, `lints.md`, `correctness-safety.md`, `cli-systems.md`: the
+  cited Clippy lints are off by default; an unfulfilled `#[expect]` warns; a
+  lock is poisoned by any panic while the guard is held; operators wrap only
+  without `overflow-checks`; only `init()` panics on a second logger.
+- `idioms.md`: the limits of `incompatible_msrv`, and the conditions under
+  which std replaces `parking_lot`, `crossbeam-channel`, `once_cell`, and
+  `assert!(matches!(..))`; `extract_if` versions per collection.
+- `project-setup.md`, `dependencies-release.md`: `rustfmt.toml` needs
+  `edition`, not only `style_edition`; `dead_code_pub_in_binary` belongs in
+  `main.rs`; `cargo info` does not print the README; `cargo update <crate>
+  --precise` is the documented form.
+- `ownership-raii.md`: the `Transaction` example names its state `armed`,
+  explains its discarded rollback error, and states the engine assumption
+  behind not rolling back after a failed commit.
+- `unsafe.md`: `static mut` has a stated exception, and the example no longer
+  reads as a justification for `unsafe`.
+
+Added, each from an observed failure:
+
+- Errors: every error type implements `Error` and is `Send + Sync + 'static`;
+  the top level prints the whole chain; a denied `expect` lint never turns a
+  bug into a logged fallback.
+- Concurrency: a section on deadline threads and callbacks (UI run loops, OS
+  callbacks, real-time audio).
+- Unsafe and FFI: discharge the callee's `# Safety` clauses, bound generic
+  `Send`/`Sync` impls, use `core::ffi` integer types, and give every foreign
+  entry point a panic backstop.
+- Tests: a test must be able to fail; removing a test, or changing docs to
+  match code, needs a stated reason; an untestable fix is reported as a gap.
+- Workflow: a required gate that did not run blocks the commit, and gates are
+  rerun after integrating other work.
+- Input and CLI: path joining and check-then-act races, `println!` on a closed
+  stdout, deterministic output order, and redacting values rather than classes.
+- Starter lints: `missing_debug_implementations`.
+
+Removed duplicated text: the restraint section of `api-design.md`, the
+suppression rules repeated in `drift-control.md`, and the repeated manifest
+rows of `workflow.md`. `SKILL.md` and the references grow by 68 lines in total.
+
 ## 2.1.0 — 2026-11-12
 
 Rust 1.100 and Cargo 1.100 stabilizations. Each rule names the toolchain floor

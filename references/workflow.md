@@ -70,9 +70,7 @@ whenever the needed tools are available.
 | Async, threads, locks, atomics | Deterministic tests including cancellation and shutdown paths (`references/concurrency.md`) |
 | `unsafe` or FFI | Safe-API tests plus Miri, a sanitizer, or a documented fallback |
 | Documentation only | rustdoc; doctests when runnable examples change |
-| Metadata-only manifest edit | `cargo metadata` |
-| Lints, features, toolchain, profiles | Affected static baseline and the relevant feature or toolchain row |
-| Dependencies or `deny.toml` | Affected build and test row, every configured `cargo deny` check |
+| Manifest, lint, feature, toolchain, or dependency edit | The row for its class in section 4 |
 | MSRV-sensitive change | Repository MSRV job or an explicit MSRV check |
 | Generated or vendored code | Regenerate or patch upstream, then build the affected row |
 | Cross-package behavior | Affected package and direct dependents; workspace when policy or reach requires it |
@@ -149,6 +147,15 @@ the surface still uncovered. Then choose the state:
 | Required gate unavailable locally, CI is the authoritative pending runner | At best `COMPLETE WITH GAPS`; never claim it passed |
 | Required gate fails with an introduced or affected failure | `BLOCKED` until fixed or the user changes the contract |
 | Verification or release task needs an unavailable row | `BLOCKED` |
+
+A required gate that did not run blocks the commit as well as the claim:
+
+- When the user limits execution (no build, no tests), deliver a report or an
+  uncommitted diff. Commit only when the user asks for the commit itself, and
+  name every skipped gate in the commit message.
+- Rerun the gates after a rebase, merge, or cherry-pick that brings in other
+  work. A pass on the tree before integration proves nothing about the result,
+  and parallel branches that each pass can fail together.
 
 Classify every observed failure:
 

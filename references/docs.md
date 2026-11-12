@@ -3,8 +3,9 @@
 ## 1. What to document
 
 - Document every public crate, module, type, function, trait, and method meant
-  for others. Under `missing_docs`, a short non-repetitive sentence is enough
-  for obvious items.
+  for others. Under `missing_docs`, a short sentence is enough for obvious
+  items, but it must say something the name and signature do not (the unit,
+  the invariant, when the value is absent); `/// Returns the text.` is noise.
 - Start with a one-line summary of about 15 words, then explain the contract:
   what it is for, how to use it, and the caveats that affect callers. Explain
   parameters in prose; do not add `# Arguments`, `# Parameters`, or `# Returns`

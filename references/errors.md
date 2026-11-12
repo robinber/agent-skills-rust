@@ -11,6 +11,10 @@ Contents: 1. Error design · 2. Never swallow failures · 3. Panic contract ·
   `anyhow::Error`. Follow the repository's convention. Use `thiserror` when it
   is already present or clearly worth adding; a small type can implement
   `Display`, `Error`, and `From` by hand.
+- Every error type, in applications too, implements `std::error::Error` (and
+  so `Display` and `Debug`) and is `Send + Sync + 'static`. A bare category
+  enum without them cannot cross `?` into `anyhow`, a task boundary, or a
+  reporter that walks `source()`.
 - Binaries may use `anyhow::Result` or `Box<dyn Error + Send + Sync>` at the
   top level, attaching context with `.context(...)` that says what was being
   attempted.
@@ -21,7 +25,8 @@ Contents: 1. Error design · 2. Never swallow failures · 3. Panic contract ·
   "No such file or directory" with no path.
 - Report each cause once: return the inner error from `source()` or include its
   message in `Display`, never both, so reporters that walk the chain do not
-  repeat it.
+  repeat it. At the top level, print the whole chain (walk `source()`, or
+  `{:#}` with `anyhow`); a plain `{err}` shows only the outermost message.
 - Write `Display` messages as concise lowercase phrases without trailing
   punctuation.
 - Prefer typed variants over string-only `bail!` when callers or an exit-code
@@ -38,7 +43,9 @@ Contents: 1. Error design · 2. Never swallow failures · 3. Panic contract ·
 - Document `# Errors` on public fallible functions.
 - Never include secrets in `Display` or `Debug` output.
 - Mark public error enums `#[non_exhaustive]` when new failure modes are
-  expected and the crate is published or reused.
+  expected and the crate is published or reused. The attribute on the enum does
+  not cover the fields of a struct-like variant; mark that variant too when it
+  may gain a field.
 - Map errors to actionable messages and stable exit codes at the CLI boundary
   (see `references/cli-systems.md`).
 
@@ -67,8 +74,9 @@ Removing a panic must not hide the failure. Never replace `unwrap` with
 it explicitly, or log it at the boundary that owns the decision. Discarding an
 error is acceptable only when failure is genuinely irrelevant, and then the
 code says why (for example a best-effort cleanup in `Drop`). Clippy's
-`let_underscore_must_use`, `unused_result_ok`, and `map_err_ignore` catch many
-cases.
+restriction lints `let_underscore_must_use`, `unused_result_ok`, and
+`map_err_ignore` catch some of these once enabled; nothing flags
+`filter_map(Result::ok)` or `unwrap_or_default()`.
 
 ## 3. Panic contract
 
@@ -98,7 +106,13 @@ under this contract. Never ship `todo!` or `unimplemented!` on reachable paths.
   broadens a caller-visible panic contract. If a condition fails, return a
   typed error or redesign the state; do not wrap a genuine bug in a `Result`
   callers cannot meaningfully handle.
-- A poisoned lock means another thread panicked mid-update. Treat
+- Do not turn a bug into a log line. When the lints deny `expect`, a state the
+  program cannot be in still fails loudly, through the scoped `#[expect]` of
+  condition 1; it never becomes a fallback value, a logged early return, or an
+  `Internal` error variant. Where a panic must not escape (a foreign callback,
+  a real-time thread), put one backstop at the entry point (see
+  `references/unsafe.md`) rather than a degrade path at every call site.
+- A poisoned lock means a thread panicked while holding the guard. Treat
   `.lock().expect("<state> mutex poisoned")` as an invariant panic. Recover
   with `PoisonError::into_inner` only when the critical section cannot leave
   the protected state half-updated.

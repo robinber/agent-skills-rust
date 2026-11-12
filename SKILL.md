@@ -32,7 +32,8 @@ Rust quality defaults, detailed in the references:
 - Return typed errors through `?`. Outside tests, add `unwrap`, `expect`, or
   `panic!` only under the panic contract in `references/errors.md`; never ship
   `todo!` or `unimplemented!`. Never trade a panic for a silently discarded
-  error (`let _ =`, `.ok()`, `unwrap_or_default()`).
+  error (`let _ =`, `.ok()`, `unwrap_or_default()`) or for a logged fallback
+  that hides a bug.
 - Borrow what you only read, own what you store, and never `clone()` just to
   silence the borrow checker.
 - Make invalid states unrepresentable with enums carrying data, newtypes, and
@@ -123,7 +124,7 @@ documentation.
 | Guards, `Drop`, close, commit, shutdown | `references/ownership-raii.md` |
 | Untrusted input, sizes, offsets, numeric conversions, limits | `references/correctness-safety.md` |
 | `unsafe`, raw pointers, FFI | `references/unsafe.md` |
-| Async, threads, locks, channels, atomics | `references/concurrency.md` |
+| Async, threads, locks, channels, atomics, UI or real-time callbacks | `references/concurrency.md` |
 | CLI, processes, streams, filesystem I/O | `references/cli-systems.md` |
 | Dependencies, `deny.toml`, publishing | `references/dependencies-release.md` |
 | Lints, toolchain, MSRV | `references/lints.md` |

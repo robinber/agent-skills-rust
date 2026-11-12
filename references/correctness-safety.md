@@ -13,8 +13,8 @@ resource limits.
   semantic is intentional and documented.
 - When overflow would be a programmer bug, use `strict_add`, `strict_mul`, and
   related methods (1.91): they panic in every profile, while plain operators
-  wrap silently in release builds. This is an invariant panic under
-  `references/errors.md`.
+  wrap silently in a release profile unless it sets `overflow-checks = true`.
+  This is an invariant panic under `references/errors.md`.
 - Use `cast_signed()` and `cast_unsigned()` (1.87) for deliberate same-width
   sign changes instead of `as`.
 - Avoid lossy `as` conversions at trust boundaries: integer narrowing
@@ -41,6 +41,11 @@ assumption.
 - Bound decompression and archive expansion by output size and entry count;
   reject entries that escape the extraction root through path traversal,
   absolute paths, or symlinks.
+- Reject absolute paths and `..` components in untrusted paths before joining:
+  `Path::join` with an absolute argument replaces the base entirely.
+- Do not check and then act on the filesystem (`exists()` followed by open or
+  create): another process can change it in between. Open with `create_new`,
+  or attempt the operation and handle its error.
 - Bound queues, retries, and spawned work; see `references/concurrency.md` for
   backpressure policy.
 - Apply timeouts to network and IPC operations that can otherwise block

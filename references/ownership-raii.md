@@ -122,28 +122,32 @@ Consume `self` when retry is meaningless; otherwise preserve or return ownership
 #[must_use = "dropping a Transaction rolls it back"]
 pub struct Transaction<'c> {
     conn: &'c mut Connection,
-    finished: bool,
+    armed: bool,
 }
 
 impl Transaction<'_> {
     pub fn commit(mut self) -> Result<(), DbError> {
-        self.finished = true;
+        self.armed = false;
         self.conn.execute("COMMIT")
     }
 }
 
 impl Drop for Transaction<'_> {
     fn drop(&mut self) {
-        if !self.finished {
+        if self.armed {
+            // Best-effort: `Drop` cannot report a failed rollback.
             let _ = self.conn.execute("ROLLBACK");
         }
     }
 }
 ```
 
-`commit` marks the transaction finished before trying, so a failed commit,
-whose effect is unknown, never triggers a blind rollback; only a transaction
-that was never committed rolls back on drop.
+`commit` disarms the fallback before trying, so a failed commit never triggers
+a blind rollback. That is right when the engine ends the transaction on a
+failed commit or leaves its outcome unknown. When the engine documents that a
+failed commit keeps the transaction open (SQLite on `SQLITE_BUSY`), keep the
+guard armed and hand it back so the caller can retry or roll back; otherwise
+the caller's next statement runs inside the stale transaction.
 
 The synchronous `Drop` trait cannot await asynchronous cleanup. Treat unstable
 `AsyncDrop` as a toolchain-specific design decision. Otherwise expose an async

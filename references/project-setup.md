@@ -73,10 +73,11 @@ components = ["rustfmt", "clippy"]
 
   A pinned toolchain newer than `rust-version` does not prove MSRV
   compatibility; keep a separate MSRV row.
-- Add a `rustfmt.toml` containing `style_edition = "2024"` so editors and bare
-  `rustfmt` format like `cargo fmt` (bare `rustfmt` otherwise uses the 2015
-  style); run `cargo fmt`, not `rustfmt`. Avoid nightly-only options unless the
-  nightly requirement is documented.
+- Add a `rustfmt.toml` containing `edition = "2024"` so editors and bare
+  `rustfmt` parse and format like `cargo fmt` (bare `rustfmt` otherwise assumes
+  edition 2015, and `style_edition` follows `edition`); run `cargo fmt`, not
+  `rustfmt`. Avoid nightly-only options unless the nightly requirement is
+  documented.
 
 ## 3. Starter lint policy
 
@@ -88,6 +89,7 @@ hard rules can be `deny`.
 [workspace.lints.rust]
 unsafe_code = "deny"
 missing_docs = "warn"
+missing_debug_implementations = "warn"
 unreachable_pub = "warn"
 unused_qualifications = "warn"
 rust_2018_idioms = { level = "warn", priority = -1 }
@@ -110,26 +112,28 @@ multiple_unsafe_ops_per_block = "deny"
 - `unsafe_code = "deny"` lets an approved module carry a scoped
   `#[expect(unsafe_code, reason = "...")]`; crates that never need `unsafe`
   add `#![forbid(unsafe_code)]` at the crate root.
+- `unwrap_used`, `expect_used`, and `panic` at `deny` do not ban invariant
+  panics. A proven invariant takes a scoped
+  `#[expect(clippy::expect_used, reason = "...")]` under the panic contract in
+  `references/errors.md`, never a fallback value that hides the bug.
 - `pedantic` is optional. Enabling it means accepting targeted
   `#[expect(clippy::..., reason = "...")]` where a lint does not fit.
 - Drop `missing_docs` for crates that expose no public API.
 - Binary crates may add the allow-by-default `dead_code_pub_in_binary` lint
-  (Rust 1.97) to catch unused `pub` items.
-- Cargo's own lints (Cargo 1.100) need no table: `unused_dependencies`,
-  `missing_lints_inheritance`, and the other defaults already warn, and CI
+  (Rust 1.97) to catch unused `pub` items. Enable it with
+  `#![warn(dead_code_pub_in_binary)]` in `main.rs`: in the workspace table it
+  also fires on library crates built as test harnesses.
+- Cargo's own lints (Cargo 1.100) need no table: they warn by default, and CI
   promotes them with `CARGO_BUILD_WARNINGS=deny` (section 5). Add
-  `[workspace.lints.cargo]` only to change a level, and only when every Cargo
-  that reads the manifest, including the MSRV row, is 1.100 or newer (floors
-  in `references/lints.md`). Keep those levels at `warn`: Cargo lints run on
-  every build, so `deny` fails a local build as soon as a dependency is added
-  before its first use.
+  `[workspace.lints.cargo]` only to change a level, within the floors in
+  `references/lints.md`, and keep levels at `warn`: Cargo lints run on every
+  build, so `deny` fails a local build as soon as a dependency is added before
+  its first use.
 
 Allow test-only panics in `clippy.toml`. Clippy reads `rust-version` from the
-manifest, so do not duplicate it as `msrv`. These keys cover `#[test]`
-functions and anything under `#[cfg(test)]`, but not plain helper functions in
-`tests/`; mark a shared helper module such as `tests/common/mod.rs` with
-`#![cfg(test)]` and declare its helpers `pub(crate)` so `unreachable_pub` stays
-quiet.
+manifest, so do not duplicate it as `msrv`. The scope of these keys, and what
+helper modules under `tests/` need, is in `references/lints.md`; declare shared
+helpers `pub(crate)` so `unreachable_pub` stays quiet.
 
 ```toml
 allow-unwrap-in-tests = true
@@ -152,7 +156,8 @@ allow-dbg-in-tests = true
 - For a new `deny.toml`, start from `cargo deny init`, then set the license
   allowlist, deny unknown registries and git sources, set
   `advisories.unsound = "all"`, and add an empty `[bans.std-replacements]`
-  table (cargo-deny 0.20+) to flag crates that std replaces.
+  table (cargo-deny 0.20+), which fails the bans check on a direct dependency
+  that std replaces.
 - Add a dependency cooldown to the repository's `.cargo/config.toml`
   (Cargo 1.100):
 
@@ -184,7 +189,7 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
 cargo hack check --workspace --rust-version
-cargo hack check --workspace --feature-powerset --no-dev-deps
+cargo hack check --workspace --feature-powerset --depth 2 --no-dev-deps
 cargo deny check
 ```
 

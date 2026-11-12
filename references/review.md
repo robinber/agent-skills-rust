@@ -1,7 +1,7 @@
 # Code review
 
-Use this reference for code review. Discovery, verification scope, and
-states follow `SKILL.md`; this file defines the shape of the review itself.
+Use this reference for code review. Discovery and verification scope follow
+`SKILL.md`; this file defines the shape of the review itself.
 
 ## 1. Finding standard
 
@@ -40,7 +40,8 @@ findings separate from unverified suspicions.
 1. Material findings, highest severity first.
 2. Open questions and unverified assumptions.
 3. Verification performed and gaps.
-4. Concise overall assessment, including the state from `SKILL.md`.
+4. Concise overall assessment. The states in `SKILL.md` describe completed
+   work; a review does not assign one.
 
 When no material finding exists, state that explicitly and list the remaining
 unverified risk surfaces. A review may report valid findings while stating that
